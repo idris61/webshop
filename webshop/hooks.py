@@ -10,9 +10,15 @@ app_version = _version
 
 required_apps = ["payments", "erpnext"]
 
-web_include_css = "webshop-web.bundle.css"
+web_include_css = [
+	"webshop-web.bundle.css",
+	"/assets/webshop/css/scroll_to_top.css"
+]
 
-web_include_js = "web.bundle.js"
+web_include_js = [
+	"web.bundle.js",
+	"/assets/webshop/js/scroll_to_top.js"
+]
 
 after_install = "webshop.setup.install.after_install"
 on_logout = "webshop.webshop.shopping_cart.utils.clear_cart_count"
@@ -23,14 +29,6 @@ on_session_creation = [
 update_website_context = [
     "webshop.webshop.shopping_cart.utils.update_website_context",
 ]
-
-# Custom footer template override
-website_context = {
-    "custom_footer_template": "webshop/templates/includes/footer/custom_footer.html"
-}
-
-# Tüm web sayfalarında custom footer kullan
-base_template = "webshop/templates/base_with_custom_footer.html"
 
 website_generators = ["Website Item", "Item Group"]
 

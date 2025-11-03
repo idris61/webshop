@@ -1,10 +1,6 @@
 {% from "webshop/templates/includes/macros.html" import attribute_filter_section, field_filter_section, discount_range_filters %}
 {% extends "templates/web.html" %}
 
-{% block footer %}
-	{% include "webshop/templates/includes/footer/custom_footer.html" %}
-{% endblock %}
-
 {% block title %}{{ _("All Products") }}{% endblock %}
 {% block header %}
 <div class="mb-6">{{ _("All Products") }}</div>
