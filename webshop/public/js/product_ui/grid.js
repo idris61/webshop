@@ -119,13 +119,9 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 			const qty = item.qty || 1;
 			price_html += `
 				<div class="cart-quantity-selector ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
-					<button class="btn-qty-decrease" data-item-code="${ item.item_code }">
-						<svg class="icon icon-sm"><use href="#icon-minus"></use></svg>
-					</button>
+					<button class="btn-qty-decrease" data-item-code="${ item.item_code }" aria-label="Decrease quantity" title="Azalt">−</button>
 					<span class="cart-qty-display">${ qty }</span>
-					<button class="btn-qty-increase" data-item-code="${ item.item_code }">
-						<svg class="icon icon-sm"><use href="#icon-plus"></use></svg>
-					</button>
+					<button class="btn-qty-increase" data-item-code="${ item.item_code }" aria-label="Increase quantity" title="Artır">+</button>
 				</div>
 			`;
 		}
@@ -154,7 +150,7 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 					</span>
 					${ this.get_cart_button_text(settings) }
 				</div>
-				<a href="/cart">
+				<a href="/cart" style="text-decoration: none;">
 					<div id="${ item.name }" class="btn btn-sm btn-primary btn-add-to-cart-list w-100 mt-4 go-to-cart-grid ${ item.in_cart ? '' : 'hidden' }"
 						data-item-code="${ item.item_code }">
 						${ this.get_goto_cart_text(settings) }

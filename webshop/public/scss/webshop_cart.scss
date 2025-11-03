@@ -1418,38 +1418,39 @@ body.product-page {
 
 // Quantity Selector on Product Cards
 .cart-quantity-selector {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	gap: 0;
+	gap: 6px;
 	background: white;
-	border: 1.5px solid #ff6b35;
+	border: 1.5px solid #ddd;
 	border-radius: 6px;
-	padding: 0;
-	min-width: 85px;
-	height: 32px;
-	box-shadow: 0 1px 3px rgba(255, 107, 53, 0.2);
+	padding: 4px 8px;
 	
 	.btn-qty-decrease,
 	.btn-qty-increase {
-		background: #ff6b35;
+		background: transparent;
 		border: none;
 		cursor: pointer;
-		padding: 6px 10px;
-		display: flex;
+		padding: 0;
+		display: inline-flex !important;
 		align-items: center;
 		justify-content: center;
-		color: white;
+		color: #333;
 		transition: all 0.2s ease;
-		height: 100%;
+		width: 20px;
+		height: 20px;
+		font-size: 1.125rem;
+		font-weight: bold;
+		line-height: 1;
 		
 		&:hover:not(:disabled) {
-			background: #ff5722;
-			transform: scale(1.05);
+			color: #ff6b35;
+			transform: scale(1.15);
 		}
 		
 		&:active:not(:disabled) {
-			transform: scale(0.95);
+			transform: scale(0.9);
 		}
 		
 		&:disabled {
@@ -1457,28 +1458,22 @@ body.product-page {
 			cursor: not-allowed;
 		}
 		
-		.icon {
-			width: 12px;
-			height: 12px;
+		svg, .icon {
+			width: 18px;
+			height: 18px;
+			display: block;
 		}
 	}
 	
-	.btn-qty-decrease {
-		border-radius: 4px 0 0 4px;
-	}
-	
-	.btn-qty-increase {
-		border-radius: 0 4px 4px 0;
-	}
-	
 	.cart-qty-display {
-		font-size: 14px;
-		font-weight: 600;
+		font-size: 1.375rem;
+		font-weight: 700;
 		color: #ff6b35;
 		min-width: 30px;
 		text-align: center;
-		padding: 0 8px;
+		padding: 0 6px;
 		user-select: none;
+		line-height: 1;
 	}
 }
 
