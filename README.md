@@ -234,6 +234,27 @@ Implemented a professional **Single Source of Truth** architecture for cart quan
 - ✅ Professional, fast, no loading flickers
 - ✅ Single source of truth (backend Quotation)
 
+## 🎨 Branding & UI Customization
+
+### Custom Footer
+Professional 4-column footer design matching corporate branding:
+- **Column 1**: Culinary Collective logo with tagline
+- **Column 2**: MENUS navigation (Home, About Us, Services, Brands, Partners, Contact)
+- **Column 3**: USEFUL LINKS (Register, Terms, Privacy, FAQ)
+- **Column 4**: CONTACT information (email, address with icons)
+- **Footer Bottom**: Copyright notice on dark background
+
+**Files:**
+- Template: `webshop/templates/includes/footer/custom_footer.html`
+- Override: `webshop/templates/web.html`
+- Context: `webshop/webshop/shopping_cart/utils.py`
+
+### Logo & Favicon
+- **Logo**: Culinary Collective green branding
+- **Favicon**: CC monogram icon
+- **Location**: `webshop/public/images/`
+- **Integration**: Automatic via `update_website_context()`
+
 ## 📚 Documentation
 
 - **User Manual**: See ERPNext eCommerce [guide](https://docs.erpnext.com/docs/user/manual/en/set_up_e_commerce)

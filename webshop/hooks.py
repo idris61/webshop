@@ -24,6 +24,14 @@ update_website_context = [
     "webshop.webshop.shopping_cart.utils.update_website_context",
 ]
 
+# Custom footer template override
+website_context = {
+    "custom_footer_template": "webshop/templates/includes/footer/custom_footer.html"
+}
+
+# Tüm web sayfalarında custom footer kullan
+base_template = "webshop/templates/base_with_custom_footer.html"
+
 website_generators = ["Website Item", "Item Group"]
 
 override_doctype_class = {
