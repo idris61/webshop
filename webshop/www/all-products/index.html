@@ -90,16 +90,20 @@
 		 */
 		$(document).on('click', '.btn-qty-increase', function(e) {
 			e.preventDefault();
-			const item_code = $(this).data('item-code');
-			const $qtyDisplay = $(this).siblings('.cart-qty-display');
+			const $btn = $(this);
+			const item_code = $btn.data('item-code');
+			const $qtyDisplay = $btn.siblings('.cart-qty-display');
 			const currentQty = parseInt($qtyDisplay.text()) || 1;
+			const newQty = currentQty + 1;
 			
+			$btn.prop('disabled', true);
 			webshop.webshop.shopping_cart.update_cart({
 				item_code: item_code,
-				qty: currentQty + 1,
+				qty: newQty,
 				callback: function(r) {
+					$btn.prop('disabled', false);
 					if (!r.exc) {
-						$qtyDisplay.text(currentQty + 1);
+						$qtyDisplay.text(newQty);
 					}
 				}
 			});
@@ -107,15 +111,19 @@
 		
 		$(document).on('click', '.btn-qty-decrease', function(e) {
 			e.preventDefault();
-			const item_code = $(this).data('item-code');
-			const $qtyDisplay = $(this).siblings('.cart-qty-display');
+			const $btn = $(this);
+			const item_code = $btn.data('item-code');
+			const $qtyDisplay = $btn.siblings('.cart-qty-display');
 			const currentQty = parseInt($qtyDisplay.text()) || 1;
+			
+			$btn.prop('disabled', true);
 			
 			if (currentQty > 1) {
 				webshop.webshop.shopping_cart.update_cart({
 					item_code: item_code,
 					qty: currentQty - 1,
 					callback: function(r) {
+						$btn.prop('disabled', false);
 						if (!r.exc) {
 							$qtyDisplay.text(currentQty - 1);
 						}
@@ -126,9 +134,11 @@
 					item_code: item_code,
 					qty: 0,
 					callback: function(r) {
+						$btn.prop('disabled', false);
 						if (!r.exc) {
 							$(`.cart-quantity-selector[data-item-code="${item_code}"]`).addClass('hidden');
 							$(`.btn-add-to-cart-list[data-item-code="${item_code}"]`).removeClass('hidden');
+							$(`.go-to-cart-grid[data-item-code="${item_code}"]`).addClass('hidden');
 						}
 					}
 				});
