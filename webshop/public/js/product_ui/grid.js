@@ -31,8 +31,9 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 
 	get_image_html(item, title, settings) {
 		let image = item.website_image;
+		// Backend'den gelen sepetteki gerçek miktar (item.qty), yoksa varsayılan 1
 		const qty = item.qty || 1;
-		// Always create the quantity selector element, just hide it if not in cart
+		// Quantity selector - sadece sepette varsa görünür
 		const qty_selector = (!item.has_variants && settings && settings.enabled) ? `
 			<div class="cart-quantity-selector-overlay ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
 				<button class="btn-qty-decrease" data-item-code="${ item.item_code }" aria-label="Decrease quantity" title="Azalt">−</button>
@@ -104,26 +105,6 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 			</a>
 		`;
 		return title_html;
-	}
-
-	get_price_html(item) {
-		let price_html = `
-			<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
-				${ item.formatted_price || '' }
-		`;
-
-		if (item.formatted_mrp) {
-			price_html += `
-				<small class="striked-price">
-					<s>${ item.formatted_mrp ? item.formatted_mrp.replace(/ +/g, "") : "" }</s>
-				</small>
-				<small class="ml-1 product-info-green">
-					${ item.discount } ${ __("OFF") }
-				</small>
-			`;
-		}
-		price_html += `</div>`;
-		return price_html;
 	}
 
 	get_primary_button(item, settings) {

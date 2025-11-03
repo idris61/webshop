@@ -357,6 +357,12 @@ def decorate_quotation_doc(doc):
 			)
 		)
 
+		# Eğer thumbnail yoksa, Item'dan image al
+		if not d.get("thumbnail"):
+			item_image = frappe.db.get_value("Item", d.item_code, "image")
+			if item_image:
+				d.thumbnail = item_image
+
 		website_warehouse = frappe.get_cached_value(
 			"Website Item", {"item_code": item_code}, "website_warehouse"
 		)
@@ -371,12 +377,15 @@ def _get_cart_quotation(party=None):
 	if not party:
 		party = get_party()
 
+	# Get actual email from User table instead of session.user (which might be "Administrator")
+	user_email = frappe.db.get_value("User", frappe.session.user, "email") or frappe.session.user
+
 	quotation = frappe.get_all(
 		"Quotation",
 		fields=["name"],
 		filters={
 			"party_name": party.name,
-			"contact_email": frappe.session.user,
+			"contact_email": user_email,
 			"order_type": "Shopping Cart",
 			"docstatus": 0,
 		},
@@ -404,10 +413,8 @@ def _get_cart_quotation(party=None):
 		)
 
 		qdoc.contact_person = frappe.db.get_value(
-			"Contact", {"email_id": frappe.session.user}
+			"Contact", {"email_id": user_email}
 		)
-		# Get actual email from User table instead of session.user (which might be "Administrator")
-		user_email = frappe.db.get_value("User", frappe.session.user, "email") or frappe.session.user
 		qdoc.contact_email = user_email
 
 		qdoc.flags.ignore_permissions = True

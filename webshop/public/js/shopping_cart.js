@@ -202,21 +202,34 @@ $.extend(shopping_cart, {
 				return;
 			}
 
-			$btn.addClass('hidden');
-			$btn.closest('.cart-action-container').addClass('d-flex');
-			$btn.parent().find('.go-to-cart').removeClass('hidden');
-			$btn.parent().find('.go-to-cart-grid').removeClass('hidden');
-			$btn.parent().find('.cart-indicator').removeClass('hidden');
-
 			const item_code = $btn.data('item-code');
-			webshop.webshop.shopping_cart.update_cart({
-				item_code,
-				qty: 1,
+
+			// Önce mevcut miktarı kontrol et
+			frappe.call({
+				method: "webshop.webshop.shopping_cart.product_info.get_product_info_for_website",
+				args: {
+					item_code: item_code
+				},
 				callback: function(r) {
-					if (!r.exc) {
-						$(`.cart-quantity-selector-overlay[data-item-code="${item_code}"]`).removeClass('hidden');
-						$(`.cart-quantity-selector-overlay[data-item-code="${item_code}"] .cart-qty-display`).text('1');
-					}
+					// Mevcut miktar varsa +1 ekle, yoksa 1 yap
+					const current_qty = r.message && r.message.product_info && r.message.product_info.qty ? r.message.product_info.qty : 0;
+					const new_qty = current_qty + 1;
+
+					$btn.addClass('hidden');
+					$btn.closest('.cart-action-container').addClass('d-flex');
+					$btn.parent().find('.go-to-cart').removeClass('hidden');
+					$btn.parent().find('.go-to-cart-grid').removeClass('hidden');
+
+					webshop.webshop.shopping_cart.update_cart({
+						item_code,
+						qty: new_qty,
+						callback: function(r) {
+							if (!r.exc) {
+								$(`.cart-quantity-selector-overlay[data-item-code="${item_code}"]`).removeClass('hidden');
+								$(`.cart-quantity-selector-overlay[data-item-code="${item_code}"] .cart-qty-display`).text(new_qty);
+							}
+						}
+					});
 				}
 			});
 

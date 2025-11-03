@@ -35,8 +35,10 @@ Enhanced and optimized version of Frappe Webshop with advanced features, perform
 ### Product Management
 - Product catalog with variants support
 - Custom short descriptions from Item DocType
-- Thumbnail fallback system (website_image → thumbnail)
+- **Smart thumbnail fallback**: Website Item thumbnail → Item image
 - Real-time stock availability display
+- **Dynamic cart quantity display** on product cards
+- **Professional quantity selector**: Clean integer-only inputs without browser spinners
 
 ### Search & Filtering
 - Fast autocomplete search (200ms debounce)
@@ -49,8 +51,11 @@ Enhanced and optimized version of Frappe Webshop with advanced features, perform
 ### Shopping Experience
 - Grid and List view modes
 - Wishlist functionality
-- Add to Cart / Add to Quote
-- Real-time cart indicator
+- Add to Cart / Add to Quote with intelligent quantity management
+- Real-time cart indicator with quantity sync
+- **Synchronized cart quantities** across all pages (product cards, detail page, cart)
+- **Single source of truth**: Backend quotation for cart state
+- **Smart "View in Cart"**: Auto-updates cart before redirect
 - Product recommendations
 - Customer reviews and ratings
 
@@ -191,6 +196,43 @@ Key translations added:
 - Debounce user input handlers
 - Lazy load images
 - Minimize nested blocks (max 1-2 levels)
+
+## 🛒 Shopping Cart Enhancements (Latest Update)
+
+### Quantity Synchronization System
+Implemented a professional **Single Source of Truth** architecture for cart quantities:
+
+#### Backend Improvements
+- **cart.py**: Added fallback image system - if Website Item thumbnail is missing, falls back to Item image
+- **query.py**: Enhanced ProductQuery engine to return cart quantities with each product
+- **get_cart_items()**: Now returns dict `{item_code: qty}` instead of simple list
+- **website_item.py**: Template now gets actual cart qty during render (no flash-of-content)
+
+#### Frontend Improvements
+- **shopping_cart.js**: "Add to Cart" now increments existing quantity (current_qty + 1) instead of resetting to 1
+- **grid.js & list.js**: Product cards display actual cart quantities from backend
+- **item_add_to_cart.html**: Added professional quantity input with +/- buttons
+- **Intelligent button toggle**: Only one button visible at a time (Add to Cart OR View in Cart)
+
+#### UX Enhancements
+- **No flash-of-content**: Correct quantity and buttons shown from initial page load
+- **"View in Cart" smart update**: Updates cart quantity before redirecting to cart page
+- **Integer-only inputs**: No decimals, clean numeric display (5 instead of 5.0)
+- **No browser spinners**: Removed default up/down arrows, using custom +/- buttons
+- **Synchronized across pages**: Product card → Detail page → Cart all show same quantity
+
+#### User Flow
+1. User selects quantity on product card (e.g., 6 items)
+2. Opens product detail page → **Quantity automatically shows 6**
+3. Changes quantity to 8 → **Updates in real-time**
+4. Clicks "View in Cart" → **Cart updates to 8 before redirect**
+5. Returns to product list → **Still shows 8** (backend sync)
+
+### Key Benefits
+- ✅ Consistent UX across all pages
+- ✅ No quantity loss during navigation
+- ✅ Professional, fast, no loading flickers
+- ✅ Single source of truth (backend Quotation)
 
 ## 📚 Documentation
 

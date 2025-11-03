@@ -141,7 +141,7 @@ webshop.ProductList = class extends webshop.ProductCardBase {
 					</span>
 					${ this.get_cart_button_text(settings) }
 				</div>
-				<div class="cart-indicator list-indicator ${item.in_cart ? '' : 'hidden'}">1</div>
+				<div class="cart-indicator list-indicator ${item.in_cart ? '' : 'hidden'}">${ item.qty || 1 }</div>
 				<a href="/cart">
 					<div id="${ item.name }" class="btn btn-sm btn-primary btn-add-to-cart-list ml-4 go-to-cart mb-0 mt-0 ${ item.in_cart ? '' : 'hidden' }"
 						data-item-code="${ item.item_code }"

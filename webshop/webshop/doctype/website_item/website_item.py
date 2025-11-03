@@ -343,8 +343,10 @@ class WebsiteItem(WebsiteGenerator):
 			get_product_info_for_website,
 		)
 
+		# skip_quotation_creation=False yaparak sepetteki güncel miktarı alıyoruz
+		# Böylece sayfa yüklendiğinde doğru qty gösterilir (flash-of-content yok)
 		context.shopping_cart = get_product_info_for_website(
-			self.item_code, skip_quotation_creation=True
+			self.item_code, skip_quotation_creation=False
 		)
 
 	@frappe.whitelist()

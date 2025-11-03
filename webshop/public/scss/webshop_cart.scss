@@ -831,14 +831,27 @@ body.product-page {
 				color: var(--gray-700);
 			}
 
-			.cart-qty {
-				height: 28px;
-				font-size: 13px;
-				&:disabled {
-					background: var(--gray-100);
-					opacity: 0.65;
-				}
+		.cart-qty {
+			height: 28px;
+			font-size: 13px;
+			&:disabled {
+				background: var(--gray-100);
+				opacity: 0.65;
 			}
+			
+			// Number input spinner'larını gizle (yukarı/aşağı oklar)
+			&.no-spinner {
+				// Chrome, Safari, Edge
+				&::-webkit-inner-spin-button,
+				&::-webkit-outer-spin-button {
+					-webkit-appearance: none;
+					margin: 0;
+				}
+				
+				// Firefox
+				-moz-appearance: textfield;
+			}
+		}
 		}
 
 		.place-order-container {

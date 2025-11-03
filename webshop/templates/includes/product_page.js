@@ -55,13 +55,14 @@ frappe.ready(function() {
 	$("#item-add-to-cart button").on("click", function() {
 		frappe.provide('webshop.shopping_cart');
 
+		var selected_qty = $("#item-spinner .cart-qty").val();
 		webshop.shopping_cart.update_cart({
 			item_code: get_item_code(),
-			qty: $("#item-spinner .cart-qty").val(),
+			qty: selected_qty,
 			callback: function(r) {
 				if(!r.exc) {
-					toggle_update_cart(1);
-					qty = 1;
+					toggle_update_cart(selected_qty);
+					qty = selected_qty;
 				}
 			},
 			btn: this,

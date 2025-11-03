@@ -235,7 +235,7 @@ class ProductQuery:
 			self.or_filters.append([field, "like", search])
 
 	def add_display_details(self, result, discount_list, cart_items):
-		"""Add price and availability details in result."""
+		"""Add price, availability, and cart quantity details in result."""
 		# Batch olarak Item'dan custom_short_description çek (PERFORMANS)
 		item_codes = [item.item_code for item in result]
 		item_short_descriptions = {}
@@ -264,7 +264,9 @@ class ProductQuery:
 			if self.settings.show_stock_availability:
 				self.get_stock_availability(item)
 
+			# Sepet bilgilerini ekle (cart_items artık dict: {item_code: qty})
 			item.in_cart = item.item_code in cart_items
+			item.qty = cart_items.get(item.item_code, 0) if cart_items else 0
 
 			item.wished = False
 			if frappe.db.exists(
@@ -317,6 +319,10 @@ class ProductQuery:
 			item.in_stock = get_stock_availability_from_template(item.item_code, warehouse)
 
 	def get_cart_items(self):
+		"""
+		Sepetteki ürünleri item_code ve qty bilgisiyle döndürür
+		Returns: dict - {item_code: qty, ...}
+		"""
 		customer = get_customer(silent=True)
 		if customer:
 			quotation = frappe.get_all(
@@ -333,12 +339,14 @@ class ProductQuery:
 			)
 			if quotation:
 				items = frappe.get_all(
-					"Quotation Item", fields=["item_code"], filters={"parent": quotation[0].get("name")}
+					"Quotation Item", 
+					fields=["item_code", "qty"], 
+					filters={"parent": quotation[0].get("name")}
 				)
-				items = [row.item_code for row in items]
-				return items
+				# Dict olarak döndür: {item_code: qty}
+				return {row.item_code: row.qty for row in items}
 
-		return []
+		return {}
 
 	def filter_results_by_discount(self, fields, result):
 		if fields and fields.get("discount"):
