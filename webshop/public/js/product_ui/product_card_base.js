@@ -64,3 +64,4 @@ webshop.ProductCardBase = class {
 	}
 };
 
+
