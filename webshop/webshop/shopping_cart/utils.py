@@ -40,6 +40,11 @@ def clear_cart_count(login_manager):
 def update_website_context(context):
 	cart_enabled = is_cart_enabled()
 	context["shopping_cart_enabled"] = cart_enabled
+	
+	# Logo ve favicon ayarları
+	context["brand_html"] = '<img src="/assets/webshop/images/logo.png" alt="Culinary Collective" style="max-height: 40px;">'
+	context["favicon"] = "/assets/webshop/images/favicon.png"
+	context["app_logo_url"] = "/assets/webshop/images/logo.png"
 
 
 def is_customer():
