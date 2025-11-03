@@ -32,7 +32,8 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 	get_image_html(item, title, settings) {
 		let image = item.website_image;
 		const qty = item.qty || 1;
-		const qty_selector = (!item.has_variants && settings && settings.enabled && item.in_cart) ? `
+		// Always create the quantity selector element, just hide it if not in cart
+		const qty_selector = (!item.has_variants && settings && settings.enabled) ? `
 			<div class="cart-quantity-selector-overlay ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
 				<button class="btn-qty-decrease" data-item-code="${ item.item_code }" aria-label="Decrease quantity" title="Azalt">−</button>
 				<span class="cart-qty-display">${ qty }</span>
