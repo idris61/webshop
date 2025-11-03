@@ -93,7 +93,7 @@ webshop.ProductList = class extends webshop.ProductCardBase {
 			<p class="product-code">
 				${ item.item_group } | ${ __('Item Code') } : ${ item.item_code }
 			</p>
-			<div class="mt-2" style="color: var(--gray-600) !important; font-size: 13px; text-align: justify;">
+			<div class="mt-2" style="color: var(--gray-600) !important; font-size: 13px;">
 				${ item.custom_short_description || item.short_description || '' }
 			</div>
 			<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">

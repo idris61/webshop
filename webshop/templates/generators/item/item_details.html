@@ -47,25 +47,25 @@
 		<div class="text-muted" style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">
 			{{ _("Product Details") }}
 		</div>
-		<div style="font-size: 13px; color: var(--gray-700); line-height: 1.6; padding: 10px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #ff6b35; text-align: justify;">
+		<div style="font-size: 13px; color: var(--gray-700); line-height: 1.6; padding: 10px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #ff6b35;">
 			{{ _(custom_short_description) }}
 		</div>
 	</div>
 	{% endif %}
 	
-	<div class="product-description" itemprop="description" style="text-align: justify;">
+	<div class="product-description" itemprop="description">
 	{% if frappe.utils.strip_html(doc.web_long_description or '') %}
 		<div class="text-muted" style="font-size: 14px; font-weight: 500; margin-bottom: 8px; margin-top: 16px;">
 			{{ _("Full Description") }}
 		</div>
-		<div style="text-align: justify;">
+		<div>
 			{{ _(doc.web_long_description) | safe }}
 		</div>
 	{% elif frappe.utils.strip_html(doc.description or '')  %}
 		<div class="text-muted" style="font-size: 14px; font-weight: 500; margin-bottom: 8px; margin-top: 16px;">
 			{{ _("Full Description") }}
 		</div>
-		<div style="text-align: justify;">
+		<div>
 			{{ _(doc.description) | safe }}
 		</div>
 	{% endif %}
