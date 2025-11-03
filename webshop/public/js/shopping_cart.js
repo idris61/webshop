@@ -207,11 +207,17 @@ $.extend(shopping_cart, {
 			$btn.parent().find('.go-to-cart').removeClass('hidden');
 			$btn.parent().find('.go-to-cart-grid').removeClass('hidden');
 			$btn.parent().find('.cart-indicator').removeClass('hidden');
+			$btn.parent().find('.cart-quantity-selector').removeClass('hidden');
 
 			const item_code = $btn.data('item-code');
 			webshop.webshop.shopping_cart.update_cart({
 				item_code,
-				qty: 1
+				qty: 1,
+				callback: function(r) {
+					if (!r.exc) {
+						$(`.cart-quantity-selector[data-item-code="${item_code}"] .cart-qty-display`).text('1');
+					}
+				}
 			});
 
 		});

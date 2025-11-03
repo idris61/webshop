@@ -99,9 +99,16 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 	}
 
 	get_cart_indicator(item) {
+		const qty = item.qty || 1;
 		return `
-			<div class="cart-indicator ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
-				1
+			<div class="cart-quantity-selector ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
+				<button class="btn-qty-decrease" data-item-code="${ item.item_code }">
+					<svg class="icon icon-sm"><use href="#icon-minus"></use></svg>
+				</button>
+				<span class="cart-qty-display">${ qty }</span>
+				<button class="btn-qty-increase" data-item-code="${ item.item_code }">
+					<svg class="icon icon-sm"><use href="#icon-plus"></use></svg>
+				</button>
 			</div>
 		`;
 	}
