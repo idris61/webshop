@@ -1,0 +1,219 @@
+{% from "webshop/templates/includes/macros.html" import attribute_filter_section, field_filter_section, discount_range_filters %}
+{% extends "templates/web.html" %}
+
+{% block title %}{{ _("All Products") }}{% endblock %}
+{% block header %}
+<div class="mb-6">{{ _("All Products") }}</div>
+{% endblock header %}
+
+{% block page_content %}
+<div class="row">
+	<!-- Items section -->
+	<div class="col-12 order-2 col-md-9 order-md-2 item-card-group-section">
+		<!-- Product listing area (ProductView renders here, includes toolbar) -->
+		<div id="product-listing"></div>
+	</div>
+
+	<!-- Filters Section -->
+	<div class="col-12 order-1 col-md-3 order-md-1">
+		<div class="collapse d-md-block mr-4 filters-section" id="product-filters">
+			<div class="d-flex justify-content-between align-items-center mb-5 title-section">
+				<div class="mb-4 filters-title" > {{ _('Filters') }} </div>
+				<a class="mb-4 clear-filters" href="/all-products">{{ _('Clear All') }}</a>
+			</div>
+			<!-- field filters -->
+			{% if field_filters %}
+				{{ _(field_filter_section(field_filters)) }}
+			{% endif %}
+
+			<!-- attribute filters -->
+			{% if attribute_filters %}
+				{{ _(attribute_filter_section(attribute_filters)) }}
+			{% endif %}
+			
+			<!-- Price Range Filter -->
+			<div class="mb-4 filter-block pb-4">
+				<div class="filter-label mb-2">
+					{{ _("Price Range") }}
+					{% if price_min or price_max %}
+					<a href="#" class="float-right text-muted" style="font-size: 11px;" onclick="clearPriceFilter(); return false;">
+						<i class="fa fa-times"></i> {{ _("Clear") }}
+					</a>
+					{% endif %}
+				</div>
+				<div class="d-flex align-items-center price-filter-container">
+					<input type="number" id="price-min" class="form-control form-control-sm price-filter-input" 
+						   placeholder="Min €" min="0" step="0.01" lang="en">
+					<span class="price-filter-separator">—</span>
+					<input type="number" id="price-max" class="form-control form-control-sm price-filter-input" 
+						   placeholder="Max €" min="0" step="0.01" lang="en">
+					<button id="apply-price-filter" class="btn btn-sm btn-primary price-filter-btn">
+						{{ _("Apply") }}
+					</button>
+				</div>
+			</div>
+		</div>
+
+	</div>
+</div>
+
+<script>
+	frappe.ready(() => {
+		class ProductListing {
+			constructor() {
+				let me = this;
+				let is_item_group_page = $(".item-group-content").data("item-group");
+				this.item_group = is_item_group_page || null;
+
+				let view_type = localStorage.getItem("product_view") || "List View";
+
+				// Render Product Views, Filters & Search
+				new webshop.ProductView({
+					view_type: view_type,
+					products_section: $('#product-listing'),
+					item_group: me.item_group
+				});
+
+				this.bind_card_actions();
+			}
+
+			bind_card_actions() {
+				webshop.webshop.shopping_cart.bind_add_to_cart_action();
+				webshop.webshop.wishlist.bind_wishlist_action();
+			}
+		}
+
+		new ProductListing();
+		
+		/**
+		 * Adds Sort By and Show controls to toolbar
+		 * @returns {boolean} Success status
+		 */
+		const addCustomControls = () => {
+			const $toolbar = $('.toolbar.d-flex');
+			
+			if (!$toolbar.length || $('#sort-by').length) {
+				return false;
+			}
+			
+			const controls = `
+				<div class="d-flex align-items-center toolbar-control-group sort-by-group">
+					<label class="mr-2 mb-0 toolbar-label">${__("Sort By")}:</label>
+					<select id="sort-by" class="form-control form-control-sm toolbar-select">
+						<option value="">${__("Default")}</option>
+						<option value="price_asc">${__("Price: Low to High")}</option>
+						<option value="price_desc">${__("Price: High to Low")}</option>
+						<option value="name_asc">${__("Name: A-Z")}</option>
+						<option value="name_desc">${__("Name: Z-A")}</option>
+						<option value="new">${__("Newest First")}</option>
+					</select>
+				</div>
+				<div class="d-flex align-items-center toolbar-control-group show-group">
+					<label class="mr-2 mb-0 toolbar-label">${__("Show")}:</label>
+					<select id="items-per-page" class="form-control form-control-sm toolbar-select items-per-page-select">
+						<option value="6">6</option>
+						<option value="12">12</option>
+						<option value="24">24</option>
+						<option value="48">48</option>
+					</select>
+				</div>
+			`;
+			
+			$toolbar.prepend(controls);
+			restoreURLParams();
+			
+			return true;
+		};
+		
+		/**
+		 * Helper: Update URL parameters and reload page
+		 * @param {Object} params - Parameters to update
+		 * @param {Boolean} resetPage - Reset to first page
+		 */
+		const updateURL = (params, resetPage = false) => {
+			let query_params = frappe.utils.get_query_params();
+			
+			if (resetPage) {
+				query_params.start = 0;
+			}
+			
+			// Handle deletions (for clearPriceFilter)
+			Object.keys(params).forEach(key => {
+				if (params[key] === null || params[key] === undefined) {
+					delete query_params[key];
+				} else {
+					query_params[key] = params[key];
+				}
+			});
+			
+			let path = window.location.pathname + '?' + frappe.utils.get_url_from_dict(query_params);
+			window.location.href = path;
+		};
+		
+		/**
+		 * Helper: Restore form values from URL parameters
+		 */
+		const restoreURLParams = () => {
+			let params = frappe.utils.get_query_params();
+			if (params.sort_by) $('#sort-by').val(params.sort_by);
+			if (params.items_per_page) $('#items-per-page').val(params.items_per_page);
+			if (params.price_min) $('#price-min').val(params.price_min);
+			if (params.price_max) $('#price-max').val(params.price_max);
+		};
+		
+		/**
+		 * Binds event handlers using event delegation for dynamic elements
+		 */
+		const bindEventHandlers = () => {
+			$(document).on('change', '#sort-by', function() {
+				updateURL({ sort_by: $(this).val() }, true);
+			});
+			
+			$(document).on('change', '#items-per-page', function() {
+				updateURL({ items_per_page: $(this).val() }, true);
+			});
+			
+			$(document).on('click', '#apply-price-filter', function() {
+				let params = {};
+				const min = $('#price-min').val();
+				const max = $('#price-max').val();
+				
+				if (min) params.price_min = min;
+				if (max) params.price_max = max;
+				
+				updateURL(params, true);
+			});
+		};
+		
+		window.clearPriceFilter = function() {
+			updateURL({ price_min: null, price_max: null }, true);
+		};
+		
+		bindEventHandlers();
+		
+		// Initialize toolbar controls with retry mechanism
+		let attempts = 0;
+		const checkInterval = setInterval(() => {
+			if (addCustomControls() || attempts++ > 30) {
+				clearInterval(checkInterval);
+			}
+		}, 100);
+		
+		// Re-add controls when toolbar is re-rendered (e.g., after filter changes)
+		const productListing = document.getElementById('product-listing');
+		if (productListing) {
+			const observer = new MutationObserver(() => {
+				if ($('.toolbar.d-flex').length && !$('#sort-by').length) {
+					addCustomControls();
+				}
+			});
+			
+			observer.observe(productListing, {
+				childList: true,
+				subtree: true
+			});
+		}
+	});
+</script>
+
+{% endblock %}
