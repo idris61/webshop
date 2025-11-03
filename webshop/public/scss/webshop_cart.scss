@@ -1081,11 +1081,12 @@ body.product-page {
 	// margin-top: auto !important;
 	max-height: 50px; // to avoid resizing on window resize
 	flex: none;
-	transition: 0.3s ease;
-
+	transition: all 0.3s ease;
 	font-size: 13px;
-
+	
 	&:hover {
+		transform: scale(1.05);
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 		color: white;
 	}
 
@@ -1095,21 +1096,38 @@ body.product-page {
 }
 
 .go-to-cart-grid {
-	max-height: 30px;
 	margin-top: 1rem !important;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	text-align: center;
+	text-decoration: none !important;
+	transition: all 0.3s ease;
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	
+	&:hover {
+		transform: scale(1.05);
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+		text-decoration: none !important;
+	}
 }
 
 .go-to-cart {
-	max-height: 30px;
 	float: right;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	text-align: center;
+	text-decoration: none !important;
+	transition: all 0.3s ease;
+	
+	&:hover {
+		transform: scale(1.05);
+		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+		text-decoration: none !important;
+	}
 }
 
 .remove-wish {
@@ -1405,29 +1423,29 @@ body.product-page {
 	justify-content: center;
 	gap: 0;
 	background: white;
-	border: 1.5px solid #ddd;
+	border: 1.5px solid #ff6b35;
 	border-radius: 6px;
 	padding: 0;
 	min-width: 85px;
 	height: 32px;
-	box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+	box-shadow: 0 1px 3px rgba(255, 107, 53, 0.2);
 	
 	.btn-qty-decrease,
 	.btn-qty-increase {
-		background: #f8f9fa;
+		background: #ff6b35;
 		border: none;
 		cursor: pointer;
 		padding: 6px 10px;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #555;
+		color: white;
 		transition: all 0.2s ease;
 		height: 100%;
 		
 		&:hover:not(:disabled) {
-			background: #ff6b35;
-			color: white;
+			background: #ff5722;
+			transform: scale(1.05);
 		}
 		
 		&:active:not(:disabled) {
@@ -1447,18 +1465,16 @@ body.product-page {
 	
 	.btn-qty-decrease {
 		border-radius: 4px 0 0 4px;
-		border-right: 1px solid #ddd;
 	}
 	
 	.btn-qty-increase {
 		border-radius: 0 4px 4px 0;
-		border-left: 1px solid #ddd;
 	}
 	
 	.cart-qty-display {
 		font-size: 14px;
 		font-weight: 600;
-		color: #333;
+		color: #ff6b35;
 		min-width: 30px;
 		text-align: center;
 		padding: 0 8px;

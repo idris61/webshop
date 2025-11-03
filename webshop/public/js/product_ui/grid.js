@@ -64,9 +64,6 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 			if (settings.enable_wishlist) {
 				body_html += this.get_wishlist_icon(item);
 			}
-			if (settings.enabled) {
-				body_html += this.get_cart_indicator(item);
-			}
 		}
 
 		body_html += `</div>`;
@@ -77,7 +74,7 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 		}
 
 		if (item.formatted_price) {
-			body_html += this.get_price_html(item);
+			body_html += this.get_price_html(item, settings);
 		}
 
 		body_html += this.get_stock_availability(item, settings);
@@ -98,19 +95,43 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 		return title_html;
 	}
 
-	get_cart_indicator(item) {
-		const qty = item.qty || 1;
-		return `
-			<div class="cart-quantity-selector ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
-				<button class="btn-qty-decrease" data-item-code="${ item.item_code }">
-					<svg class="icon icon-sm"><use href="#icon-minus"></use></svg>
-				</button>
-				<span class="cart-qty-display">${ qty }</span>
-				<button class="btn-qty-increase" data-item-code="${ item.item_code }">
-					<svg class="icon icon-sm"><use href="#icon-plus"></use></svg>
-				</button>
-			</div>
+	get_price_html(item, settings) {
+		let price_html = `
+			<div class="product-price-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
+				<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
+					${ item.formatted_price || '' }
 		`;
+
+		if (item.formatted_mrp) {
+			price_html += `
+				<small class="striked-price">
+					<s>${ item.formatted_mrp ? item.formatted_mrp.replace(/ +/g, "") : "" }</s>
+				</small>
+				<small class="ml-1 product-info-green">
+					${ item.discount } ${ __("OFF") }
+				</small>
+			`;
+		}
+		price_html += `</div>`;
+		
+		// Add quantity selector on the right if item is in cart
+		if (!item.has_variants && settings && settings.enabled) {
+			const qty = item.qty || 1;
+			price_html += `
+				<div class="cart-quantity-selector ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
+					<button class="btn-qty-decrease" data-item-code="${ item.item_code }">
+						<svg class="icon icon-sm"><use href="#icon-minus"></use></svg>
+					</button>
+					<span class="cart-qty-display">${ qty }</span>
+					<button class="btn-qty-increase" data-item-code="${ item.item_code }">
+						<svg class="icon icon-sm"><use href="#icon-plus"></use></svg>
+					</button>
+				</div>
+			`;
+		}
+		
+		price_html += `</div>`;
+		return price_html;
 	}
 
 	get_primary_button(item, settings) {
