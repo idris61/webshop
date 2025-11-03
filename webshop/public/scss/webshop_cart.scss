@@ -1416,8 +1416,15 @@ body.product-page {
 	color: gray;
 }
 
-// Quantity Selector on Product Cards
-.cart-quantity-selector {
+// Quantity Selector on Product Cards (Overlay on Image)
+.card-img-container {
+	position: relative;
+}
+
+.cart-quantity-selector-overlay {
+	position: absolute;
+	top: 8px;
+	right: 8px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1426,6 +1433,8 @@ body.product-page {
 	border: 1.5px solid #ddd;
 	border-radius: 6px;
 	padding: 4px 8px;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	z-index: 10;
 	
 	.btn-qty-decrease,
 	.btn-qty-increase {
@@ -1466,12 +1475,12 @@ body.product-page {
 	}
 	
 	.cart-qty-display {
-		font-size: 1.375rem;
+		font-size: 1.125rem;
 		font-weight: 700;
 		color: #ff6b35;
-		min-width: 30px;
+		min-width: 28px;
 		text-align: center;
-		padding: 0 6px;
+		padding: 0 4px;
 		user-select: none;
 		line-height: 1;
 	}

@@ -20,7 +20,7 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 			title =  title.length > 90 ? title.substr(0, 90) + "..." : title;
 
 			html += `<div class="col-sm-4 item-card"><div class="card text-left">`;
-			html += me.get_image_html(item, title);
+			html += me.get_image_html(item, title, me.settings);
 			html += me.get_card_body_html(item, title, me.settings);
 			html += `</div></div>`;
 		});
@@ -29,8 +29,16 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 		$product_wrapper.append(html);
 	}
 
-	get_image_html(item, title) {
+	get_image_html(item, title, settings) {
 		let image = item.website_image;
+		const qty = item.qty || 1;
+		const qty_selector = (!item.has_variants && settings && settings.enabled && item.in_cart) ? `
+			<div class="cart-quantity-selector-overlay ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
+				<button class="btn-qty-decrease" data-item-code="${ item.item_code }" aria-label="Decrease quantity" title="Azalt">−</button>
+				<span class="cart-qty-display">${ qty }</span>
+				<button class="btn-qty-increase" data-item-code="${ item.item_code }" aria-label="Increase quantity" title="Artır">+</button>
+			</div>
+		` : '';
 
 		if (image) {
 			return `
@@ -38,6 +46,7 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 					<a href="/${ item.route || '#' }" style="text-decoration: none;">
 						<img itemprop="image" class="card-img" src="${ image }" alt="${ title }">
 					</a>
+					${ qty_selector }
 				</div>
 			`;
 		} else {
@@ -48,6 +57,7 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 							${ frappe.get_abbr(title) }
 						</div>
 					</a>
+					${ qty_selector }
 				</div>
 			`;
 		}
@@ -74,7 +84,7 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 		}
 
 		if (item.formatted_price) {
-			body_html += this.get_price_html(item, settings);
+			body_html += this.get_price_html(item);
 		}
 
 		body_html += this.get_stock_availability(item, settings);
@@ -95,11 +105,10 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 		return title_html;
 	}
 
-	get_price_html(item, settings) {
+	get_price_html(item) {
 		let price_html = `
-			<div class="product-price-row" style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
-				<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
-					${ item.formatted_price || '' }
+			<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
+				${ item.formatted_price || '' }
 		`;
 
 		if (item.formatted_mrp) {
@@ -112,20 +121,6 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 				</small>
 			`;
 		}
-		price_html += `</div>`;
-		
-		// Add quantity selector on the right if item is in cart
-		if (!item.has_variants && settings && settings.enabled) {
-			const qty = item.qty || 1;
-			price_html += `
-				<div class="cart-quantity-selector ${item.in_cart ? '' : 'hidden'}" data-item-code="${ item.item_code }">
-					<button class="btn-qty-decrease" data-item-code="${ item.item_code }" aria-label="Decrease quantity" title="Azalt">−</button>
-					<span class="cart-qty-display">${ qty }</span>
-					<button class="btn-qty-increase" data-item-code="${ item.item_code }" aria-label="Increase quantity" title="Artır">+</button>
-				</div>
-			`;
-		}
-		
 		price_html += `</div>`;
 		return price_html;
 	}

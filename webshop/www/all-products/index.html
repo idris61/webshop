@@ -136,7 +136,7 @@
 					callback: function(r) {
 						$btn.prop('disabled', false);
 						if (!r.exc) {
-							$(`.cart-quantity-selector[data-item-code="${item_code}"]`).addClass('hidden');
+							$(`.cart-quantity-selector-overlay[data-item-code="${item_code}"]`).addClass('hidden');
 							$(`.btn-add-to-cart-list[data-item-code="${item_code}"]`).removeClass('hidden');
 							$(`.go-to-cart-grid[data-item-code="${item_code}"]`).addClass('hidden');
 						}
