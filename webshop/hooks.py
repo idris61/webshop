@@ -10,15 +10,9 @@ app_version = _version
 
 required_apps = ["payments", "erpnext"]
 
-web_include_css = [
-	"webshop-web.bundle.css",
-	"/assets/webshop/css/scroll_to_top.css"
-]
+web_include_css = "webshop-web.bundle.css"
 
-web_include_js = [
-	"web.bundle.js",
-	"/assets/webshop/js/scroll_to_top.js"
-]
+web_include_js = "web.bundle.js"
 
 after_install = "webshop.setup.install.after_install"
 on_logout = "webshop.webshop.shopping_cart.utils.clear_cart_count"
