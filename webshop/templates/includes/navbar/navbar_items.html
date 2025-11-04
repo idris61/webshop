@@ -5,10 +5,11 @@
 	{% if show_language_picker %}
 		<li class="nav-item dropdown" id="language-picker-nav">
 			<a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-				🌐 {{ frappe.local.lang.upper() }}
+				🌐 {{ frappe.lang|upper }}
 			</a>
 			<div class="dropdown-menu dropdown-menu-right">
-				{% for language in frappe.get_all("Language", filters={"enabled": 1}, fields=["name", "language_name"], order_by="language_name") %}
+				{% set languages = frappe.get_all("Language", filters={"enabled": 1}, fields=["name", "language_name"], order_by="language_name", limit_page_length=999) %}
+				{% for language in languages %}
 					<a class="dropdown-item" href="?_lang={{ language.name }}">
 						{{ language.language_name }}
 					</a>
