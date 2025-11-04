@@ -8,15 +8,11 @@
 				🌐 {{ frappe.lang|upper }}
 			</a>
 			<div class="dropdown-menu dropdown-menu-right">
-				{% set selected_languages = ["tr", "en", "de", "fr", "it"] %}
-				{% for lang_code in selected_languages %}
-					{% set lang = frappe.get_value("Language", lang_code, ["name", "language_name"], as_dict=1) %}
-					{% if lang %}
-						<a class="dropdown-item" href="?_lang={{ lang.name }}">
-							{{ lang.language_name }}
-						</a>
-					{% endif %}
-				{% endfor %}
+				<a class="dropdown-item" href="?_lang=tr">Türkçe</a>
+				<a class="dropdown-item" href="?_lang=en">English</a>
+				<a class="dropdown-item" href="?_lang=de">Deutsch</a>
+				<a class="dropdown-item" href="?_lang=fr">Français</a>
+				<a class="dropdown-item" href="?_lang=it">Italiano</a>
 			</div>
 		</li>
 	{% endif %}
