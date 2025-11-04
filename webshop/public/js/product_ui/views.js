@@ -135,31 +135,54 @@ webshop.ProductView = class {
 		$(".product-paging-area").remove();
 
 		if (this.products) {
+			let query_params = frappe.utils.get_query_params();
+			let start = query_params.start ? cint(query_params.start) : 0;
+			
+			// ÖNCE URL'deki items_per_page'e bak, yoksa backend settings'i kullan
+			let page_length = query_params.items_per_page ? cint(query_params.items_per_page) : (settings.products_per_page || 6);
+			
+			if (page_length === 0) page_length = 6; // Fallback
+			
+			// Sayfa numaralarını hesapla
+			let current_page = Math.floor(start / page_length) + 1;
+			let total_pages = Math.ceil(this.product_count / page_length);
+			
+			// Toolbar'daki ürün sayısını güncelle
+			let items_on_page = this.products.length;
+			$('#product-count-text').text(`${items_on_page}/${this.product_count}`);
+			
 			let paging_html = `
 				<div class="row product-paging-area mt-5">
-					<div class="col-3">
-					</div>
-					<div class="col-9 text-right">
+					<div class="col-12 text-center">
 			`;
-			let query_params = frappe.utils.get_query_params();
-			let start = query_params.start ? cint(JSON.parse(query_params.start)) : 0;
-			let page_length = settings.products_per_page || 0;
 
-			let prev_disable = start > 0 ? "" : "disabled";
-			let next_disable = (this.product_count > page_length) ? "" : "disabled";
+			// Prev butonu
+			if (current_page > 1) {
+				paging_html += `
+					<button class="btn btn-sm btn-default btn-page-nav" data-start="${ (current_page - 2) * page_length }">
+						${ __("Prev") }
+					</button>`;
+			}
+			
+			// Sayfa numaraları (max 7 sayfa göster)
+			let start_page = Math.max(1, current_page - 3);
+			let end_page = Math.min(total_pages, current_page + 3);
+			
+			for (let page = start_page; page <= end_page; page++) {
+				let active_class = page === current_page ? 'btn-primary' : 'btn-outline-secondary';
+				paging_html += `
+					<button class="btn btn-sm ${active_class} btn-page-nav ml-1" data-start="${ (page - 1) * page_length }">
+						${ page }
+					</button>`;
+			}
 
-			paging_html += `
-				<button class="btn btn-default btn-prev" data-start="${ start - page_length }"
-					style="float: left" ${prev_disable}>
-					${ __("Prev") }
-				</button>`;
-
-			paging_html += `
-				<button class="btn btn-default btn-next" data-start="${ start + page_length }"
-					${next_disable}>
-					${ __("Next") }
-				</button>
-			`;
+			// Next butonu
+			if (current_page < total_pages) {
+				paging_html += `
+					<button class="btn btn-sm btn-default btn-page-nav ml-1" data-start="${ current_page * page_length }">
+						${ __("Next") }
+					</button>`;
+			}
 
 			paging_html += `</div></div>`;
 
@@ -242,17 +265,27 @@ webshop.ProductView = class {
 
 	bind_paging_action() {
 		let me = this;
-		$('.btn-prev, .btn-next').click((e) => {
-			const $btn = $(e.target);
+		
+		// Event delegation ile tüm sayfa butonlarını dinle
+		$(document).on('click', '.btn-page-nav', function(e) {
+			e.preventDefault();
+			const $btn = $(this);
 			me.from_filters = false;
 
-			$btn.prop('disabled', true);
+			// Disable all paging buttons
+			$('.btn-page-nav').prop('disabled', true);
+			
 			const start = $btn.data('start');
 
 			let query_params = frappe.utils.get_query_params();
 			query_params.start = start;
+			
+			// URL'yi güncelle (RELOAD YOK - History API)
 			let path = window.location.pathname + '?' + frappe.utils.get_url_from_dict(query_params);
-			window.location.href = path;
+			window.history.pushState({}, '', path);
+			
+			// AJAX ile yeniden yükle (HIZLI)
+			me.make(true);
 		});
 	}
 

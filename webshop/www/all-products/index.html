@@ -67,8 +67,8 @@
 
 				let view_type = localStorage.getItem("product_view") || "List View";
 
-				// Render Product Views, Filters & Search
-				new webshop.ProductView({
+				// Render Product Views, Filters & Search (GLOBAL yapıldı - AJAX için)
+				window.productView = new webshop.ProductView({
 					view_type: view_type,
 					products_section: $('#product-listing'),
 					item_group: me.item_group
@@ -168,16 +168,35 @@
 						<option value="new">${__("Newest First")}</option>
 					</select>
 				</div>
+				<div class="d-flex align-items-center toolbar-control-group show-group">
+					<label class="mr-2 mb-0 toolbar-label">${__("Show")}:</label>
+					<select id="items-per-page" class="form-control form-control-sm toolbar-select items-per-page-select">
+						<option value="6">6</option>
+						<option value="12">12</option>
+						<option value="24">24</option>
+						<option value="48">48</option>
+					</select>
+				</div>
 			`;
 			
 			$toolbar.prepend(controls);
+			
+			// Ürün sayısını toolbar'ın ALTINA ekle
+			if (!$('#product-count-header').length) {
+				$toolbar.after(`
+					<div id="product-count-header" class="text-right mb-3 mt-2" style="color: #38A160; font-weight: 700; font-size: 16px;">
+						<span id="product-count-text">-/-</span>
+					</div>
+				`);
+			}
+			
 			restoreURLParams();
 			
 			return true;
 		};
 		
 		/**
-		 * Helper: Update URL parameters and reload page
+		 * Helper: Update URL parameters WITHOUT page reload (AJAX)
 		 * @param {Object} params - Parameters to update
 		 * @param {Boolean} resetPage - Reset to first page
 		 */
@@ -197,8 +216,17 @@
 				}
 			});
 			
+			// URL'yi güncelle (RELOAD YOK - History API)
 			let path = window.location.pathname + '?' + frappe.utils.get_url_from_dict(query_params);
-			window.location.href = path;
+			window.history.pushState({}, '', path);
+			
+			// AJAX ile ürünleri yeniden yükle (HIZLI)
+			if (window.productView) {
+				window.productView.make(true);
+			} else {
+				// Fallback: sayfa reload (eski sistem)
+				window.location.href = path;
+			}
 		};
 		
 		/**
@@ -207,6 +235,7 @@
 		const restoreURLParams = () => {
 			let params = frappe.utils.get_query_params();
 			if (params.sort_by) $('#sort-by').val(params.sort_by);
+			if (params.items_per_page) $('#items-per-page').val(params.items_per_page);
 			if (params.price_min) $('#price-min').val(params.price_min);
 			if (params.price_max) $('#price-max').val(params.price_max);
 		};
@@ -217,6 +246,10 @@
 		const bindEventHandlers = () => {
 			$(document).on('change', '#sort-by', function() {
 				updateURL({ sort_by: $(this).val() }, true);
+			});
+			
+			$(document).on('change', '#items-per-page', function() {
+				updateURL({ items_per_page: $(this).val() }, true);
 			});
 			
 			$(document).on('click', '#apply-price-filter', function() {
