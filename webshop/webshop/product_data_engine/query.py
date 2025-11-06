@@ -32,16 +32,15 @@ class ProductQuery:
 			"name",
 			"item_name",
 			"item_code",
-			"website_image",
-			"variant_of",
-			"has_variants",
-			"item_group",
-			"web_long_description",
-			"short_description",
-			"custom_short_description",  # Kısa açıklama alanı
-			"route",
-			"website_warehouse",
-			"ranking",
+		"website_image",
+		"variant_of",
+		"has_variants",
+		"item_group",
+		"web_long_description",
+		"short_description",
+		"route",
+		"website_warehouse",
+		"ranking",
 			"on_backorder",
 		]
 
@@ -176,8 +175,11 @@ class ProductQuery:
 			if not df:
 				continue
 			
+			# Special handling for primary_supplier - filter by child table
+			if field == "primary_supplier":
+				self.filters.append(["Website Item Supplier", "supplier", "in", values])
 			# Handle different field types
-			if df.fieldtype == "Table MultiSelect":
+			elif df.fieldtype == "Table MultiSelect":
 				child_doctype = df.options
 				child_meta = frappe.get_meta(child_doctype, cached=True)
 				fields = child_meta.get("fields")
@@ -236,22 +238,6 @@ class ProductQuery:
 
 	def add_display_details(self, result, discount_list, cart_items):
 		"""Add price, availability, and cart quantity details in result."""
-		# Batch olarak Item'dan custom_short_description çek (PERFORMANS)
-		item_codes = [item.item_code for item in result]
-		item_short_descriptions = {}
-		
-		if item_codes:
-			item_data = frappe.db.get_all(
-				"Item",
-				filters={"item_code": ["in", item_codes]},
-				fields=["item_code", "custom_short_description"]
-			)
-			item_short_descriptions = {
-				d.item_code: d.custom_short_description 
-				for d in item_data 
-				if d.custom_short_description
-			}
-		
 		for item in result:
 			product_info = get_product_info_for_website(item.item_code, skip_quotation_creation=True).get(
 				"product_info"
@@ -273,10 +259,6 @@ class ProductQuery:
 				"Wishlist Item", {"item_code": item.item_code, "parent": frappe.session.user}
 			):
 				item.wished = True
-			
-			# Item'dan custom_short_description ekle (fallback)
-			if not item.get("custom_short_description") and item.item_code in item_short_descriptions:
-				item.custom_short_description = item_short_descriptions[item.item_code]
 
 		return result, discount_list
 

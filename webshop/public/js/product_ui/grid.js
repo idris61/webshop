@@ -78,12 +78,12 @@ webshop.ProductGrid = class extends webshop.ProductCardBase {
 			}
 		}
 
-		body_html += `</div>`;
-		body_html += `<div class="product-category" itemprop="name">${ item.item_group || '' }</div>`;
-		
-		if (item.custom_short_description) {
-			body_html += `<div class="product-short-description text-muted" style="font-size: 12px; margin-top: 4px; line-height: 1.4;">${ item.custom_short_description }</div>`;
-		}
+	body_html += `</div>`;
+	body_html += `<div class="product-category" itemprop="name">${ item.item_group || '' }</div>`;
+	
+	if (item.short_description) {
+		body_html += `<div class="product-short-description text-muted" style="font-size: 12px; margin-top: 4px; line-height: 1.4;">${ item.short_description }</div>`;
+	}
 
 		if (item.formatted_price) {
 			body_html += this.get_price_html(item);

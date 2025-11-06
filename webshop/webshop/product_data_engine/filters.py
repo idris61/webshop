@@ -34,40 +34,44 @@ class ProductFiltersBuilder:
 			link_doctype_values = self.get_filtered_link_doctype_records(df)
 
 			if df.fieldtype == "Link":
-				if self.item_group:
-					include_child = frappe.db.get_value("Item Group", self.item_group, "include_descendants")
-					if include_child:
-						include_groups = get_child_groups_for_website(self.item_group, include_self=True)
-						include_groups = [x.name for x in include_groups]
-						item_or_filters.extend(
-							[
-								["item_group", "in", include_groups],
-								["Website Item Group", "item_group", "=", self.item_group],  # consider website item groups
-							]
-						)
-					else:
-						item_or_filters.extend(
-							[
-								["item_group", "=", self.item_group],
-								["Website Item Group", "item_group", "=", self.item_group],  # consider website item groups
-							]
-						)
+				# Special handling for primary_supplier - get from child table
+				if df.fieldname == "primary_supplier":
+					values = self.get_supplier_filter_values(item_filters, item_or_filters, link_doctype_values)
+				else:
+					if self.item_group:
+						include_child = frappe.db.get_value("Item Group", self.item_group, "include_descendants")
+						if include_child:
+							include_groups = get_child_groups_for_website(self.item_group, include_self=True)
+							include_groups = [x.name for x in include_groups]
+							item_or_filters.extend(
+								[
+									["item_group", "in", include_groups],
+									["Website Item Group", "item_group", "=", self.item_group],  # consider website item groups
+								]
+							)
+						else:
+							item_or_filters.extend(
+								[
+									["item_group", "=", self.item_group],
+									["Website Item Group", "item_group", "=", self.item_group],  # consider website item groups
+								]
+							)
 
-				# exclude variants if mentioned in settings
-				if frappe.db.get_single_value("Webshop Settings", "hide_variants"):
-					item_filters["variant_of"] = ["is", "not set"]
+					# exclude variants if mentioned in settings
+					if frappe.db.get_single_value("Webshop Settings", "hide_variants"):
+						item_filters["variant_of"] = ["is", "not set"]
 
-				# Get link field values attached to published items
-				item_values = frappe.get_all(
-					"Website Item",
-					fields=[df.fieldname],
-					filters=item_filters,
-					or_filters=item_or_filters,
-					distinct="True",
-					pluck=df.fieldname,
-				)
+					# Get link field values attached to published items
+					item_values = frappe.get_all(
+						"Website Item",
+						fields=[df.fieldname],
+						filters=item_filters,
+						or_filters=item_or_filters,
+						distinct="True",
+						pluck=df.fieldname,
+					)
 
-				values = list(set(item_values) & link_doctype_values)  # intersection of both
+					values = list(set(item_values) & link_doctype_values)  # intersection of both
 			elif df.fieldtype in ["Check", "Select"]:
 				# Check and Select field types - special handling
 				if df.fieldtype == "Check":
@@ -110,6 +114,59 @@ class ProductFiltersBuilder:
 
 		return filter_data
 
+	def get_supplier_filter_values(self, item_filters, item_or_filters, link_doctype_values):
+		"""
+		Get all unique suppliers from Website Item Supplier child table.
+		This allows filtering by ALL suppliers, not just primary_supplier.
+		
+		Args:
+			item_filters: Filters for Website Item
+			item_or_filters: OR filters for Website Item
+			link_doctype_values: Valid Supplier records
+			
+		Returns:
+			list: List of unique supplier names
+		"""
+		from webshop.webshop.doctype.override_doctype.item_group import get_child_groups_for_website
+		
+		# Build parent filters for Website Item
+		parent_filters = [["published", "=", 1]]
+		
+		if self.item_group:
+			include_child = frappe.db.get_value("Item Group", self.item_group, "include_descendants")
+			if include_child:
+				include_groups = get_child_groups_for_website(self.item_group, include_self=True)
+				include_groups = [x.name for x in include_groups]
+				parent_filters.append(["item_group", "in", include_groups])
+			else:
+				parent_filters.append(["item_group", "=", self.item_group])
+		
+		# exclude variants if mentioned in settings
+		if frappe.db.get_single_value("Webshop Settings", "hide_variants"):
+			parent_filters.append(["variant_of", "is", "not set"])
+		
+		# Get all Website Items that match filters
+		website_items = frappe.get_all(
+			"Website Item",
+			filters=parent_filters,
+			pluck="name"
+		)
+		
+		if not website_items:
+			return []
+		
+		# Get all unique suppliers from child table
+		suppliers = frappe.get_all(
+			"Website Item Supplier",
+			filters={"parent": ["in", website_items]},
+			pluck="supplier",
+			distinct=True
+		)
+		
+		# Intersection with valid link doctype values
+		values = list(set(suppliers) & link_doctype_values)
+		return values
+	
 	def get_filtered_link_doctype_records(self, field):
 		"""
 		Get valid link doctype records depending on filters.

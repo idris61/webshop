@@ -61,6 +61,7 @@ class WebsiteItem(WebsiteGenerator):
 		self.validate_duplicate_website_item()
 		self.validate_website_image()
 		self.make_thumbnail()
+		self.update_primary_supplier()
 		self.publish_unpublish_desk_item(publish=True)
 
 		if not self.get("__islocal"):
@@ -128,6 +129,15 @@ class WebsiteItem(WebsiteGenerator):
 				if not template_item.published_in_website:
 					template_item.flags.ignore_permissions = True
 					make_website_item(template_item)
+	
+	def update_primary_supplier(self):
+		"""Update primary_supplier field with first supplier from supplier_items."""
+		if self.supplier_items and len(self.supplier_items) > 0:
+			# İlk tedarikçiyi primary_supplier olarak ata
+			self.primary_supplier = self.supplier_items[0].supplier
+		else:
+			# Tedarikçi yoksa temizle
+			self.primary_supplier = None
 
 	def validate_website_image(self):
 		if frappe.flags.in_import:
@@ -265,9 +275,7 @@ class WebsiteItem(WebsiteGenerator):
 		if settings and settings.enable_recommendations:
 			context.recommended_items = self.get_recommended_items(settings)
 
-		context.custom_short_description = frappe.db.get_value(
-			"Item", self.item_code, "custom_short_description"
-		)
+		# short_description artık doğrudan Website Item'da mevcut (Item'dan fetch ediliyor)
 
 		return context
 
@@ -539,6 +547,17 @@ def make_website_item(doc, save=True):
 		doc.get("image") and not website_item.website_image
 	):
 		website_item.website_image = doc.get("image")
+	
+	# Copy supplier items from Item to Website Item
+	if doc.get("supplier_items"):
+		for idx, supplier_item in enumerate(doc.get("supplier_items")):
+			website_item.append("supplier_items", {
+				"supplier": supplier_item.get("supplier"),
+				"supplier_part_no": supplier_item.get("supplier_part_no")
+			})
+			# İlk tedarikçiyi primary_supplier olarak ata (filtreleme için)
+			if idx == 0:
+				website_item.primary_supplier = supplier_item.get("supplier")
 
 	if not save:
 		return website_item
