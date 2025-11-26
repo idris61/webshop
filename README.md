@@ -2,6 +2,16 @@
 
 Enhanced and optimized version of Frappe Webshop with advanced features, performance improvements, and professional UI/UX enhancements.
 
+## Mimari Prensip
+
+- **Webshop App**: Genel e-ticaret özellikleri - Tüm projelerde ortak kullanılır
+  - Cart, Wishlist, Order sayfaları
+  - Ürün listeleme ve filtreleme
+  - Arama ve sıralama
+  - Sepet yönetimi
+  - Dil seçici
+- **Custom Apps**: Projeye özel yapılandırmalar (brand styling, custom fields, otomasyonlar)
+
 ## 🚀 Key Enhancements
 
 ### Performance Optimizations
@@ -197,22 +207,24 @@ Key translations added:
 - Lazy load images
 - Minimize nested blocks (max 1-2 levels)
 
-## 🛒 Shopping Cart Enhancements (Latest Update)
+## 🛒 Shopping Cart Enhancements
 
 ### Quantity Synchronization System
 Implemented a professional **Single Source of Truth** architecture for cart quantities:
 
 #### Backend Improvements
 - **cart.py**: Added fallback image system - if Website Item thumbnail is missing, falls back to Item image
-- **query.py**: Enhanced ProductQuery engine to return cart quantities with each product
+- **query.py**: Enhanced ProductQuery engine to return cart quantities with each product, excludes variants from product count
 - **get_cart_items()**: Now returns dict `{item_code: qty}` instead of simple list
 - **website_item.py**: Template now gets actual cart qty during render (no flash-of-content)
+- **set_cart_count()**: Improved cart count calculation by summing item quantities directly
 
 #### Frontend Improvements
 - **shopping_cart.js**: "Add to Cart" now increments existing quantity (current_qty + 1) instead of resetting to 1
 - **grid.js & list.js**: Product cards display actual cart quantities from backend
 - **item_add_to_cart.html**: Added professional quantity input with +/- buttons
 - **Intelligent button toggle**: Only one button visible at a time (Add to Cart OR View in Cart)
+- **Button standardization**: All buttons use uppercase text (VIEW IN CART, ADD TO CART, EXPLORE)
 
 #### UX Enhancements
 - **No flash-of-content**: Correct quantity and buttons shown from initial page load
@@ -220,6 +232,8 @@ Implemented a professional **Single Source of Truth** architecture for cart quan
 - **Integer-only inputs**: No decimals, clean numeric display (5 instead of 5.0)
 - **No browser spinners**: Removed default up/down arrows, using custom +/- buttons
 - **Synchronized across pages**: Product card → Detail page → Cart all show same quantity
+- **Cart quantity buttons**: Fixed +/- buttons to allow multiple increments/decrements
+- **Unit field positioning**: UOM (Birim) field moved below quantity input, left-aligned
 
 #### User Flow
 1. User selects quantity on product card (e.g., 6 items)
@@ -233,6 +247,77 @@ Implemented a professional **Single Source of Truth** architecture for cart quan
 - ✅ No quantity loss during navigation
 - ✅ Professional, fast, no loading flickers
 - ✅ Single source of truth (backend Quotation)
+
+## 🎯 Variant Product Support (Latest Update)
+
+### Advanced Variant Management
+Comprehensive support for product variants with dynamic UI components:
+
+#### Variant Selection
+- **Attribute Selection**: Interactive size/color/attribute buttons with visual feedback
+- **Real-time Variant Matching**: Automatically finds matching variant when all attributes selected
+- **Available Variant Filtering**: Disables unavailable attribute combinations
+- **Variant Info Display**: Shows selected variant name, price, and stock status
+
+#### UOM (Unit of Measure) Support
+- **Dynamic UOM Selector**: Automatically appears after variant selection
+- **Multiple UOM Options**: Supports Piece, Carton, Box, etc. with price conversion
+- **Price Updates**: Real-time price display based on selected UOM
+- **UOM in Cart**: Displays selected UOM in cart items
+
+#### Quantity Management
+- **Dynamic Quantity Selector**: Professional +/- buttons appear after variant selection
+- **Integer-only Input**: Clean numeric input without decimals
+- **Minimum Quantity**: Enforces minimum quantity of 1
+- **Synchronized Quantities**: Quantity syncs across product card, detail page, and cart
+
+#### Button Visibility
+- **Smart Button Display**: "Add to Cart" / "View in Cart" buttons appear only after variant selection
+- **Dynamic Button Creation**: Buttons created dynamically if not present in template
+- **Standardized Text**: All buttons use uppercase standardized text (VIEW IN CART, ADD TO CART)
+- **Button Styling**: Consistent green gradient styling for "Go to Cart" buttons
+
+#### Professional UI/UX
+- **Variant Selector Section**: Clean, professional layout with proper spacing and borders
+- **Selected Variant Info**: Highlighted box showing variant details with gradient background
+- **Loading States**: Visual feedback during filter transitions
+- **Debounced Filtering**: Prevents excessive API calls during rapid filter changes
+- **Responsive Design**: Mobile-optimized variant selection interface
+
+### Technical Implementation
+- **item_variant_selector.js**: Handles variant selection, UOM updates, quantity management
+- **updateUOMSelector()**: Dynamically creates/updates UOM dropdown based on variant
+- **updateQuantitySelector()**: Dynamically adds quantity spinner after variant selection
+- **updateAddToCartButton()**: Ensures button visibility and creates buttons if needed
+- **Template Integration**: Seamless integration with Jinja2 templates
+
+## 🎨 Professional UI/UX Enhancements
+
+### Product Detail Page Improvements
+- **Professional Layout**: Improved spacing, alignment, and visual hierarchy
+- **Variant Selector Styling**: Enhanced borders, shadows, and hover effects
+- **UOM Selector Styling**: Professional dropdown with focus states
+- **Quantity Selector Styling**: Clean 40x40px buttons with proper alignment
+- **Button Container**: Improved spacing and gap management
+- **Product Information**: Better organized product code, brand, and category display
+- **Price Range Display**: Enhanced styling with proper borders and spacing
+
+### All Products Page Enhancements
+- **Toolbar Alignment**: Professional Sort By, Show, and Product Count display
+- **Product Count Styling**: Bold orange display (e.g., "6/55")
+- **Filter Section**: Clean filter layout with consistent text styles
+- **View Toggle Icons**: SVG icons for grid/list view with active states
+- **Search Functionality**: Fixed search integration with ProductSearch class
+- **Default Grid View**: Grid view set as default on page load
+- **Loading States**: Visual feedback during filter transitions
+- **Debounced Filtering**: Optimized filter change handling
+
+### Cart Page Improvements
+- **Unit Field Position**: UOM field moved below quantity, left-aligned
+- **Quantity Buttons**: Fixed +/- buttons to allow multiple increments/decrements
+- **Cart Count Sync**: Accurate cart count calculation and display
+- **Button Styling**: Removed underlines, green gradient for "Go to Cart" buttons
+- **Consistent Text Styles**: Standardized font sizes and weights across all elements
 
 ## 📚 Documentation
 
