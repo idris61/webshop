@@ -1,0 +1,46 @@
+[
+ {
+  "doctype": "Property Setter",
+  "name": "Item Group-allow_guest_to_view",
+  "doc_type": "Item Group",
+  "doctype_or_field": "DocType",
+  "field_name": "",
+  "property": "allow_guest_to_view",
+  "property_type": "Check",
+  "value": "1",
+  "is_system_generated": 1
+ },
+ {
+  "doctype": "Property Setter",
+  "name": "Item Group-has_web_view",
+  "doc_type": "Item Group",
+  "doctype_or_field": "DocType",
+  "field_name": "",
+  "property": "has_web_view",
+  "property_type": "Check",
+  "value": "1",
+  "is_system_generated": 1
+ },
+ {
+  "doctype": "Property Setter",
+  "name": "Website Item-web_long_description-fetch_from",
+  "doc_type": "Website Item",
+  "doctype_or_field": "DocField",
+  "field_name": "web_long_description",
+  "property": "fetch_from",
+  "property_type": "Small Text",
+  "value": "item_code.description",
+  "is_system_generated": 1
+ }
+]
+
+
+
+
+
+
+
+
+
+
+

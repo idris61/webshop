@@ -41,11 +41,58 @@
 		<div class="col-12 order-1 col-md-3 order-md-1">
 			<div class="collapse d-md-block mr-4 filters-section" id="product-filters">
 				<div class="d-flex justify-content-between align-items-center mb-5 title-section">
-					<div class="mb-4 filters-title" > {{ _('Filters') }} </div>
-					<a class="mb-4 clear-filters" href="/{{ doc.route }}">{{ _('Clear All') }}</a>
+					<div class="mb-4 filters-title" style="font-weight: 700; font-size: 18px; color: var(--gray-900);">
+						<i class="fa fa-filter mr-2"></i>{{ _('Filters') }}
+					</div>
+					<a class="mb-4 clear-filters" href="/{{ doc.route }}" style="font-size: 13px; color: var(--primary-color); text-decoration: none;">
+						<i class="fa fa-times mr-1"></i>{{ _('Clear All') }}
+					</a>
 				</div>
-				<!-- field filters -->
-				{{ field_filter_section(field_filters) }}
+				
+				<!-- Product Category Filtresi -->
+				{% if product_category_filters %}
+					<div class="mb-4 filter-block pb-4">
+						<div class="filter-label mb-3" style="font-weight: 600; font-size: 14px; color: var(--gray-800);">
+							<i class="fa fa-tags mr-2" style="font-size: 12px;"></i>{{ _("Product Categories") }}
+						</div>
+						{% if product_category_filters | len > 10 %}
+						<input type="text" class="form-control form-control-sm mb-2 filter-lookup-input" 
+							placeholder="{{ _('Search') }} {{ _('Product Categories') }}"/>
+						{% endif %}
+						<div class="filter-options" style="max-height: 300px; overflow-y: auto;">
+							{% for category in product_category_filters %}
+							<div class="filter-lookup-wrapper checkbox" data-value="{{ category.name }}">
+								<label for="product_category_{{ category.name }}">
+									<input type="checkbox"
+										class="product-filter field-filter"
+										id="product_category_{{ category.name }}"
+										data-filter-name="product_category"
+										data-filter-value="{{ category.name }}">
+									<span class="label-area">{{ _(category.label or category.name) }} <span class="text-muted">({{ category.count }})</span></span>
+								</label>
+							</div>
+							{% endfor %}
+						</div>
+					</div>
+				{% endif %}
+				
+				<!-- Brand Filtresi (Öncelikli) -->
+				{% if field_filters %}
+					{% for field_filter in field_filters %}
+						{% if field_filter[0].fieldname == "brand" %}
+							{{ field_filter_section([field_filter]) }}
+						{% endif %}
+					{% endfor %}
+				{% endif %}
+
+				<!-- Diğer Field Filtreleri -->
+				{% if field_filters %}
+					{% for field_filter in field_filters %}
+						{% if field_filter[0].fieldname != "brand" %}
+							{{ field_filter_section([field_filter]) }}
+						{% endif %}
+					{% endfor %}
+				{% endif %}
 
 				<!-- attribute filters -->
 				{{ attribute_filter_section(attribute_filters) }}

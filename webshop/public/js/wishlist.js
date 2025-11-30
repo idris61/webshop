@@ -1,47 +1,71 @@
 frappe.provide("webshop.webshop.wishlist");
-var wishlist = webshop.webshop.wishlist;
+const wishlist = webshop.webshop.wishlist;
 
 frappe.provide("webshop.webshop.shopping_cart");
-var shopping_cart = webshop.webshop.shopping_cart;
+const shopping_cart = webshop.webshop.shopping_cart;
+
+// Constants
+const ANIMATION_TIMEOUT_MS = 500;
+
+// Guest kullanıcı kontrolü ve login yönlendirme
+const redirectGuest = () => {
+	if (localStorage) {
+		localStorage.setItem("last_visited", window.location.pathname);
+	}
+	return frappe.call('webshop.webshop.api.get_guest_redirect_on_action')
+		.then((res) => {
+			window.location.href = res?.message || "/login";
+		})
+		.catch((error) => {
+			console.error("Error redirecting guest user:", error);
+			window.location.href = "/login";
+		});
+};
 
 $.extend(wishlist, {
-	set_wishlist_count: function(animate=false) {
-		// set badge count for wishlist icon
-		var wish_count = frappe.get_cookie("wish_count");
-		if (frappe.session.user==="Guest") {
+	set_wishlist_count(animate = false) {
+		let wish_count = frappe.get_cookie("wish_count");
+		if (frappe.session.user === "Guest") {
 			wish_count = 0;
 		}
 
-		if (wish_count) {
+		const wishCount = parseInt(wish_count) || 0;
+
+		if (wishCount > 0) {
 			$(".wishlist").toggleClass('hidden', false);
 		}
 
-		var $wishlist = $('.wishlist-icon');
-		var $badge = $wishlist.find("#wish-count");
+		const $wishlist = $('.wishlist-icon');
+		const $badge = $wishlist.find("#wish-count");
 
-		if (parseInt(wish_count) === 0 || wish_count === undefined) {
+		if (wishCount === 0) {
 			$wishlist.css("display", "none");
 		} else {
 			$wishlist.css("display", "inline");
 		}
-		if (wish_count) {
-			$badge.html(wish_count);
+
+		if (wishCount > 0) {
+			$badge.html(wishCount);
 			if (animate) {
 				$wishlist.addClass('cart-animate');
 				setTimeout(() => {
 					$wishlist.removeClass('cart-animate');
-				}, 500);
+				}, ANIMATION_TIMEOUT_MS);
 			}
 		} else {
 			$badge.remove();
 		}
 	},
 
-	bind_move_to_cart_action: function() {
-		// move item to cart from wishlist
+	bind_move_to_cart_action() {
 		$('.page_content').on("click", ".btn-add-to-cart", (e) => {
 			const $move_to_cart_btn = $(e.currentTarget);
-			let item_code = $move_to_cart_btn.data("item-code");
+			const item_code = $move_to_cart_btn.data("item-code");
+
+			if (!item_code) {
+				console.error("Item code not found");
+				return;
+			}
 
 			shopping_cart.shopping_cart_update({
 				item_code,
@@ -49,38 +73,39 @@ $.extend(wishlist, {
 				cart_dropdown: true
 			});
 
-			let success_action = function() {
+			const success_action = () => {
 				const $card_wrapper = $move_to_cart_btn.closest(".wishlist-card");
 				$card_wrapper.addClass("wish-removed");
 			};
-			let args = { item_code: item_code };
+			const args = { item_code };
 			this.add_remove_from_wishlist("remove", args, success_action, null, true);
 		});
 	},
 
-	bind_remove_action: function() {
-		// remove item from wishlist
-		let me = this;
-
+	bind_remove_action() {
 		$('.page_content').on("click", ".remove-wish", (e) => {
 			const $remove_wish_btn = $(e.currentTarget);
-			let item_code = $remove_wish_btn.data("item-code");
+			const item_code = $remove_wish_btn.data("item-code");
 
-			let success_action = function() {
+			if (!item_code) {
+				console.error("Item code not found");
+				return;
+			}
+
+			const success_action = () => {
 				const $card_wrapper = $remove_wish_btn.closest(".wishlist-card");
 				$card_wrapper.addClass("wish-removed");
-				if (frappe.get_cookie("wish_count") == 0) {
+				if (parseInt(frappe.get_cookie("wish_count")) === 0) {
 					$(".page_content").empty();
-					me.render_empty_state();
+					this.render_empty_state();
 				}
 			};
-			let args = { item_code: item_code };
+			const args = { item_code };
 			this.add_remove_from_wishlist("remove", args, success_action);
 		});
 	},
 
 	bind_wishlist_action() {
-		// 'wish'('like') or 'unwish' item in product listing
 		$('.page_content').on('click', '.like-action, .like-action-list', (e) => {
 			const $btn = $(e.currentTarget);
 			this.wishlist_action($btn);
@@ -89,40 +114,40 @@ $.extend(wishlist, {
 
 	wishlist_action(btn) {
 		const $wish_icon = btn.find('.wish-icon');
-		let me = this;
 
-		if (frappe.session.user==="Guest") {
-			if (localStorage) {
-				localStorage.setItem("last_visited", window.location.pathname);
-			}
-			this.redirect_guest();
+		if (frappe.session.user === "Guest") {
+			redirectGuest();
 			return;
 		}
 
-		let success_action = function() {
+		const success_action = () => {
 			webshop.webshop.wishlist.set_wishlist_count(true);
 		};
 
+		const item_code = btn.data('item-code');
+		if (!item_code) {
+			console.error("Item code not found");
+			return;
+		}
+
 		if ($wish_icon.hasClass('wished')) {
-			// un-wish item
 			btn.removeClass("like-animate");
 			btn.addClass("like-action-wished");
 			this.toggle_button_class($wish_icon, 'wished', 'not-wished');
 
-			let args = { item_code: btn.data('item-code') };
-			let failure_action = function() {
-				me.toggle_button_class($wish_icon, 'not-wished', 'wished');
+			const args = { item_code };
+			const failure_action = () => {
+				this.toggle_button_class($wish_icon, 'not-wished', 'wished');
 			};
 			this.add_remove_from_wishlist("remove", args, success_action, failure_action);
 		} else {
-			// wish item
 			btn.addClass("like-animate");
 			btn.addClass("like-action-wished");
 			this.toggle_button_class($wish_icon, 'not-wished', 'wished');
 
-			let args = {item_code: btn.data('item-code')};
-			let failure_action = function() {
-				me.toggle_button_class($wish_icon, 'wished', 'not-wished');
+			const args = { item_code };
+			const failure_action = () => {
+				this.toggle_button_class($wish_icon, 'wished', 'not-wished');
 			};
 			this.add_remove_from_wishlist("add", args, success_action, failure_action);
 		}
@@ -133,66 +158,63 @@ $.extend(wishlist, {
 		button.addClass(add);
 	},
 
-	add_remove_from_wishlist(action, args, success_action, failure_action, async=false) {
-		/*	AJAX call to add or remove Item from Wishlist
-			action: "add" or "remove"
-			args: args for method (item_code, price, formatted_price),
-			success_action: method to execute on successs,
-			failure_action: method to execute on failure,
-			async: make call asynchronously (true/false).	*/
-		if (frappe.session.user==="Guest") {
-			if (localStorage) {
-				localStorage.setItem("last_visited", window.location.pathname);
-			}
-			this.redirect_guest();
-		} else {
-			let method = "webshop.webshop.doctype.wishlist.wishlist.add_to_wishlist";
-			if (action === "remove") {
-				method = "webshop.webshop.doctype.wishlist.wishlist.remove_from_wishlist";
-			}
+	add_remove_from_wishlist(action, args, success_action, failure_action, async = false) {
+		if (frappe.session.user === "Guest") {
+			redirectGuest();
+			return;
+		}
 
-			frappe.call({
-				async: async,
-				type: "POST",
-				method: method,
-				args: args,
-				callback: function (r) {
-					if (r.exc) {
-						if (failure_action && (typeof failure_action === 'function')) {
+		const method = action === "remove"
+			? "webshop.webshop.doctype.wishlist.wishlist.remove_from_wishlist"
+			: "webshop.webshop.doctype.wishlist.wishlist.add_to_wishlist";
+
+		frappe.call({
+			async: async,
+			type: "POST",
+			method: method,
+			args: args,
+			callback: (r) => {
+				try {
+					if (r?.exc) {
+						if (failure_action && typeof failure_action === 'function') {
 							failure_action();
 						}
 						frappe.msgprint({
 							message: __("Sorry, something went wrong. Please refresh."),
-							indicator: "red", title: __("Note")
+							indicator: "red",
+							title: __("Note")
 						});
-					} else if (success_action && (typeof success_action === 'function')) {
+					} else if (success_action && typeof success_action === 'function') {
 						success_action();
 					}
+				} catch (error) {
+					console.error("Error in add_remove_from_wishlist callback:", error);
+					if (failure_action && typeof failure_action === 'function') {
+						failure_action();
+					}
 				}
-			});
-		}
+			}
+		});
 	},
 
 	redirect_guest() {
-		frappe.call('webshop.webshop.api.get_guest_redirect_on_action').then((res) => {
-			window.location.href = res.message || "/login";
-		});
+		redirectGuest();
 	},
 
 	render_empty_state() {
 		$(".page_content").append(`
 			<div class="cart-empty frappe-card">
 				<div class="cart-empty-state">
-					<img src="/assets/webshop/images/cart-empty-state.png" alt="Empty Cart">
+					<img src="/assets/webshop/images/cart-empty-state.png" alt="Empty Wishlist" loading="lazy">
 				</div>
-				<div class="cart-empty-message mt-4">${ __('Wishlist is empty !') }</p>
+				<div class="cart-empty-message mt-4">${__('Wishlist is empty !')}</div>
 			</div>
 		`);
 	}
 
 });
 
-frappe.ready(function() {
+frappe.ready(() => {
 	if (window.location.pathname !== "/wishlist") {
 		$(".wishlist").toggleClass('hidden', true);
 		wishlist.set_wishlist_count();
@@ -200,5 +222,4 @@ frappe.ready(function() {
 		wishlist.bind_move_to_cart_action();
 		wishlist.bind_remove_action();
 	}
-
 });

@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 import frappe
 from frappe import _
-from frappe.utils import cint, cstr, flt, random_string
+from frappe.utils import cint, cstr, flt, random_string, fmt_money
 from frappe.website.doctype.website_slideshow.website_slideshow import get_slideshow
 from frappe.website.website_generator import WebsiteGenerator
 
@@ -62,6 +62,7 @@ class WebsiteItem(WebsiteGenerator):
 		self.validate_website_image()
 		self.make_thumbnail()
 		self.update_primary_supplier()
+		self.sync_product_categories_from_item()
 		self.publish_unpublish_desk_item(publish=True)
 
 		if not self.get("__islocal"):
@@ -130,11 +131,26 @@ class WebsiteItem(WebsiteGenerator):
 					template_item.flags.ignore_permissions = True
 					make_website_item(template_item)
 	
+	def sync_product_categories_from_item(self):
+		"""Product categories'i Item'dan fetch et"""
+		if self.item_code and frappe.db.exists("Item", self.item_code):
+			item_doc = frappe.get_doc("Item", self.item_code)
+			
+			# Mevcut kategorileri temizle
+			self.product_categories = []
+			
+			# Item'daki kategorileri kopyala
+			for cat_row in item_doc.product_categories:
+				self.append("product_categories", {
+					"product_category": cat_row.product_category
+				})
+	
 	def update_primary_supplier(self):
 		"""Update primary_supplier field with first supplier from supplier_items."""
-		if self.supplier_items and len(self.supplier_items) > 0:
+		supplier_items = self.get("supplier_items", [])
+		if supplier_items and len(supplier_items) > 0:
 			# İlk tedarikçiyi primary_supplier olarak ata
-			self.primary_supplier = self.supplier_items[0].supplier
+			self.primary_supplier = supplier_items[0].supplier
 		else:
 			# Tedarikçi yoksa temizle
 			self.primary_supplier = None
@@ -248,6 +264,65 @@ class WebsiteItem(WebsiteGenerator):
 			filters={"parent": self.item_code},
 		)
 
+		# Varyant seçildiğinde varyantın resim ve badge'lerini kontrol et
+		variant_item_code = frappe.request.args.get('variant') if frappe.request else None
+		variant_web_item = None
+		variant_image = None
+		variant_badges = []
+		
+		if variant_item_code and variant_item_code != self.item_code:
+			# Varyantın Website Item'ını bul
+			variant_web_item_name = frappe.db.exists("Website Item", {"item_code": variant_item_code})
+			if variant_web_item_name:
+				variant_web_item = frappe.get_doc("Website Item", variant_web_item_name)
+				# Varyantın resmini al (varsa)
+				if variant_web_item.website_image:
+					variant_image = variant_web_item.website_image
+				# Varyantın badge'lerini al
+				variant_badges = frappe.db.get_values(
+					"Product Badge",
+					{"parent": variant_web_item_name, "parenttype": "Website Item", "parentfield": "product_badges"},
+					"*",
+					as_dict=True,
+					order_by="display_order asc, idx asc"
+				) or []
+
+		# Varyantın resmi varsa onu kullan, yoksa template item'ın resmini kullan
+		if variant_image:
+			context.variant_image = variant_image
+		else:
+			context.variant_image = self.website_image
+
+		# Varyantın badge'leri varsa onları kullan, yoksa template item'ın badge'lerini kullan
+		if variant_badges:
+			self.product_badges = variant_badges
+		else:
+			if not hasattr(self, 'product_badges') or not self.product_badges:
+				# Child table'ı doğrudan yükle
+				badges = frappe.db.get_values(
+					"Product Badge",
+					{"parent": self.name, "parenttype": "Website Item", "parentfield": "product_badges"},
+					"*",
+					as_dict=True,
+					order_by="display_order asc, idx asc"
+				) or []
+				self.product_badges = badges
+		
+		# Product Categories'i context'e ekle
+		if not hasattr(self, 'product_categories') or not self.product_categories:
+			# Child table'ı doğrudan yükle
+			categories = frappe.db.get_values(
+				"Item Product Category",
+				{"parent": self.name, "parenttype": "Website Item", "parentfield": "product_categories"},
+				"*",
+				as_dict=True,
+				order_by="idx asc"
+			) or []
+			self.product_categories = categories
+		
+		# Context'e product_categories ekle
+		context.product_categories = self.product_categories
+
 		if self.slideshow:
 			context.update(get_slideshow(self))
 
@@ -255,6 +330,14 @@ class WebsiteItem(WebsiteGenerator):
 		self.set_shopping_cart_data(context)
 
 		settings = context.shopping_cart.cart_settings
+		
+		# has_variants'i context'e ekle (template'te kullanılmak için)
+		context.has_variants = self.has_variants
+		
+		# Varyant bilgilerini yükle (has_variants ise)
+		if self.has_variants and settings.enable_variants:
+			self.set_variant_context(context)
+		
 		self.get_product_details_section(context)
 
 		if settings.get("enable_reviews"):
@@ -276,29 +359,212 @@ class WebsiteItem(WebsiteGenerator):
 			context.recommended_items = self.get_recommended_items(settings)
 
 		# short_description artık doğrudan Website Item'da mevcut (Item'dan fetch ediliyor)
+		
+		# Apply translations for portal content
+		from webshop.webshop.utils.translation import get_translated_doc, get_translated_text
+		# Get current language explicitly to ensure it's up-to-date
+		current_language = frappe.local.lang or "en"
+		
+		if hasattr(context, 'doc') and context.doc:
+			# Translate Website Item
+			translated_doc = get_translated_doc(context.doc, language=current_language)
+			if not isinstance(translated_doc, dict):
+				if hasattr(translated_doc, "as_dict"):
+					translated_doc = translated_doc.as_dict()
+				else:
+					translated_doc = frappe._dict(translated_doc.__dict__)
+			
+			# Also translate the underlying Item DocType (description comes from Item)
+			if hasattr(context.doc, 'item_code') and context.doc.item_code:
+				try:
+					item_doc = frappe.get_cached_doc("Item", context.doc.item_code)
+					translated_item = get_translated_doc(item_doc, language=current_language, 
+						fields=["item_name", "description", "item_group", "brand"])
+					if isinstance(translated_item, dict):
+						# Update Website Item fields from translated Item
+						if "description" in translated_item and translated_item["description"]:
+							# Item.description -> Website Item.web_long_description or description
+							if not translated_doc.get("web_long_description"):
+								translated_doc["web_long_description"] = translated_item["description"]
+							if not translated_doc.get("description"):
+								translated_doc["description"] = translated_item["description"]
+						if "item_name" in translated_item and translated_item["item_name"]:
+							if not translated_doc.get("item_name"):
+								translated_doc["item_name"] = translated_item["item_name"]
+							if not translated_doc.get("web_item_name"):
+								translated_doc["web_item_name"] = translated_item["item_name"]
+				except Exception as e:
+					frappe.log_error(f"Error translating Item for Website Item: {str(e)}")
+			
+			# Update context.doc with translated fields
+			for key, value in translated_doc.items():
+				if key in ["item_name", "web_item_name", "description", "website_description", 
+				          "web_long_description", "item_group", "brand", "short_description"]:
+					setattr(context.doc, key, value)
+					# Also update context dict for template access
+					context[key] = value
+			
+			# Translate product categories
+			if hasattr(context, "product_categories") and context.product_categories:
+				for category_row in context.product_categories:
+					category_name = None
+					if isinstance(category_row, dict):
+						category_name = category_row.get("product_category")
+					elif hasattr(category_row, "product_category"):
+						category_name = getattr(category_row, "product_category")
+					if not category_name:
+						continue
+					translated_category = get_translated_text(category_name, language=current_language)
+					if translated_category and translated_category != category_name:
+						if isinstance(category_row, dict):
+							category_row["product_category"] = translated_category
+						else:
+							setattr(category_row, "product_category", translated_category)
 
 		return context
 
+	def set_variant_context(self, context):
+		"""Varyant bilgilerini context'e ekle"""
+		from webshop.webshop.variant_selector.utils import get_attributes_and_values
+		from webshop.webshop.shopping_cart.cart import _set_price_list
+		from webshop.webshop.doctype.webshop_settings.webshop_settings import get_shopping_cart_settings
+		from erpnext.utilities.product import get_price
+		
+		# Varyant attribute'larını al
+		attributes = get_attributes_and_values(self.item_code)
+		
+		# Varyant cache'den varyant bilgilerini al
+		item_cache = ItemVariantsCacheManager(self.item_code)
+		item_attribute_value_map = item_cache.get_item_attribute_value_map()
+		
+		# Varyantları oluştur (sadece published Website Item'lar)
+		variants = []
+		variant_map = {}
+		published_web_items = frappe.get_all(
+			"Website Item",
+			filters={"item_code": ["in", list(item_attribute_value_map.keys())], "published": 1},
+			fields=["item_code"],
+			pluck="item_code"
+		)
+		
+		# Fiyat aralığı hesaplama için cart settings
+		cart_settings = get_shopping_cart_settings()
+		price_list = _set_price_list(cart_settings, None)
+		variant_prices = []
+		
+		# Varyantları sıralı olarak oluştur (Size'a göre)
+		for item_code in published_web_items:
+			if item_code in item_attribute_value_map:
+				variant_attrs = []
+				size_value = None
+				for attr_name, attr_value in item_attribute_value_map[item_code].items():
+					variant_attrs.append({
+						"attribute": attr_name,
+						"attribute_value": attr_value
+					})
+					if attr_name == "Size":
+						try:
+							size_value = float(attr_value)
+						except (ValueError, TypeError):
+							size_value = 0
+				
+				# Varyant fiyatını al
+				variant_price = None
+				if cart_settings.show_price:
+					price_data = get_price(
+						item_code,
+						price_list,
+						cart_settings.default_customer_group,
+						cart_settings.company,
+					)
+					if price_data and price_data.get("price_list_rate"):
+						variant_price = price_data.get("price_list_rate")
+						variant_prices.append(variant_price)
+				
+				variant_map[item_code] = {
+					"name": item_code,
+					"attributes": variant_attrs,
+					"price": variant_price,
+					"_size_value": size_value if size_value is not None else 0
+				}
+				variants.append(variant_map[item_code])
+		
+		# Varyantları Size'a göre sırala
+		variants.sort(key=lambda v: v.get("_size_value", 0))
+		
+		# Fiyat aralığını hesapla
+		if variant_prices:
+			min_price = min(variant_prices)
+			max_price = max(variant_prices)
+			currency = frappe.db.get_value("Price List", price_list, "currency") if price_list else "EUR"
+			
+			context.price_range = {
+				"min": min_price,
+				"max": max_price,
+				"min_formatted": fmt_money(min_price, currency=currency),
+				"max_formatted": fmt_money(max_price, currency=currency),
+				"currency": currency,
+				"has_range": len(set(variant_prices)) > 1  # Birden fazla farklı fiyat varsa
+			}
+		else:
+			context.price_range = None
+		
+		context.variant_info = variants
+		context.attributes = attributes
+		
+		# Seçili varyant (varsa)
+		variant_item_code = frappe.request.args.get('variant') if frappe.request else None
+		if variant_item_code and variant_item_code in variant_map:
+			context.variant = variant_map[variant_item_code]
+		elif variants:
+			# İlk varyantı varsayılan olarak seç
+			context.variant = variants[0]
+		else:
+			context.variant = frappe._dict({"name": self.item_code, "attributes": []})
+		
+		context.selected_attributes = frappe._dict()
+		attribute_values_available = frappe._dict()
+		context.attribute_values = frappe._dict()  # Önce başlat
+		self.set_selected_attributes(variants, context, attribute_values_available)
+		self.set_attribute_values(attributes, context, attribute_values_available)
+		# attribute_values_available'daki değerleri context.attribute_values'a kopyala
+		for attr_name, values in attribute_values_available.items():
+			context.attribute_values[attr_name] = values
+
 	def set_selected_attributes(self, variants, context, attribute_values_available):
+		"""Varyant attribute'larını işle ve seçili attribute'ları belirle"""
 		for variant in variants:
-			variant.attributes = frappe.get_all(
-				"Item Variant Attribute",
-				filters={"parent": variant.name},
-				fields=["attribute", "attribute_value as value"],
+			# variant bir dict, name'i al
+			variant_name = variant.get("name")
+			
+			# Eğer attributes yoksa, Item Variant Attribute'dan çek
+			if not variant.get("attributes"):
+				variant["attributes"] = frappe.get_all(
+					"Item Variant Attribute",
+					filters={"parent": variant_name},
+					fields=["attribute", "attribute_value as value"],
+				)
+
+			# Attribute-value map oluştur
+			variant_attrs = variant.get("attributes", [])
+			variant["attribute_map"] = frappe._dict(
+				{attr.get("attribute"): attr.get("attribute_value") or attr.get("value") for attr in variant_attrs}
 			)
 
-			# make an attribute-value map for easier access in templates
-			variant.attribute_map = frappe._dict(
-				{attr.attribute: attr.value for attr in variant.attributes}
-			)
+			# Her attribute için değerleri topla
+			for attr in variant_attrs:
+				attr_name = attr.get("attribute")
+				attr_value = attr.get("attribute_value") or attr.get("value")
+				
+				if attr_name and attr_value:
+					values = attribute_values_available.setdefault(attr_name, [])
+					if attr_value not in values:
+						values.append(attr_value)
 
-			for attr in variant.attributes:
-				values = attribute_values_available.setdefault(attr.attribute, [])
-				if attr.value not in values:
-					values.append(attr.value)
-
-				if variant.name == context.variant.name:
-					context.selected_attributes[attr.attribute] = attr.value
+					# Seçili varyantın attribute'larını işaretle
+					context_variant_name = context.variant.get("name") if isinstance(context.variant, dict) else getattr(context.variant, "name", None)
+					if variant_name == context_variant_name:
+						context.selected_attributes[attr_name] = attr_value
 
 	def set_attribute_values(self, attributes, context, attribute_values_available):
 		for attr in attributes:

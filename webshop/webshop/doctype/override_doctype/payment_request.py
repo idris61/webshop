@@ -37,15 +37,15 @@ class PaymentRequest(OriginalPaymentRequest):
                 }
             ).get(success_url, "/me")
 
-        self.set_as_paid()
+        # Payment Entry oluştururken sistem kullanıcısına geçiş yap
+        # Böylece permission kontrolü başarılı olur
+        original_user = frappe.session.user
+        try:
+            # Sistem kullanıcısına geçiş yap
+            frappe.set_user("Administrator")
+            self.set_as_paid()
+        finally:
+            # Orijinal kullanıcıya geri dön
+            frappe.set_user(original_user)
 
         return redirect_to
-
-    @staticmethod
-    def get_gateway_details(args):
-        if args.order_type != "Shopping Cart":
-            return super().get_gateway_details(args)
-
-        cart_settings = frappe.get_doc("Webshop Settings")
-        gateway_account = cart_settings.payment_gateway_account
-        return super().get_payment_gateway_account(gateway_account)

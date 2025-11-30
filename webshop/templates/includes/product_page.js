@@ -14,9 +14,25 @@ frappe.ready(function() {
 		callback: function(r) {
 			if(r.message) {
 				if(r.message.cart_settings.enabled) {
-					let hide_add_to_cart = !r.message.product_info.price
-						|| (!r.message.product_info.in_stock && !r.message.cart_settings.allow_items_not_in_stock);
+					// UOM seçenekleri varsa veya sales_uom/uom varsa, butonları her zaman göster
+					let hide_add_to_cart = false;
+					const has_uom_options = r.message.product_info.uom_options && r.message.product_info.uom_options.length > 0;
+					const has_uom = r.message.product_info.sales_uom || r.message.product_info.uom;
+					
+					// Eğer UOM seçenekleri veya UOM değeri varsa, her zaman göster
+					if (!has_uom_options && !has_uom) {
+						hide_add_to_cart = !r.message.product_info.price
+							|| (!r.message.product_info.in_stock && !r.message.cart_settings.allow_items_not_in_stock);
+					}
 					$(".item-cart, .item-price, .item-stock").toggleClass('hide', hide_add_to_cart);
+					
+					// UOM alanı varsa, item-cart'ı zorla göster
+					if (has_uom_options || has_uom) {
+						setTimeout(function() {
+							$(".item-cart").removeClass('hide').show();
+							$(".nm-uom-select-wrapper, .nm-uom-select").closest('.mt-3.mb-3').removeClass('hide hidden').show();
+						}, 100);
+					}
 				}
 				if(r.message.cart_settings.show_price) {
 					$(".item-price").toggleClass("hide", false);
@@ -25,9 +41,11 @@ frappe.ready(function() {
 					$(".item-stock").toggleClass("hide", false);
 				}
 				if(r.message.product_info.price) {
+					const price_info = r.message.product_info.price;
+					const main_price = price_info.formatted_price_sales_uom || price_info.formatted_price;
 					$(".item-price")
-						.html(r.message.product_info.price.formatted_price_sales_uom + "<div style='font-size: small'>\
-							(" + r.message.product_info.price.formatted_price + " / " + r.message.product_info.uom + ")</div>");
+						.html(main_price + "<div style='font-size: small'>\
+							(" + price_info.formatted_price + " / " + r.message.product_info.uom + ")</div>");
 
 					if(r.message.product_info.in_stock===0) {
 						$(".item-stock").html("<div style='color: red'> <i class='fa fa-close'></i> {{ _("Not in stock") }}</div>");

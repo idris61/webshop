@@ -10,7 +10,10 @@ app_version = _version
 
 required_apps = ["payments", "erpnext"]
 
-web_include_css = "webshop-web.bundle.css"
+web_include_css = [
+	"webshop-web.bundle.css",
+	"https://cdnjs.cloudflare.com/ajax/libs/flag-icon-css/3.5.0/css/flag-icon.min.css"
+]
 
 web_include_js = "web.bundle.js"
 
@@ -22,6 +25,7 @@ on_session_creation = [
 ]
 update_website_context = [
     "webshop.webshop.shopping_cart.utils.update_website_context",
+    "webshop.webshop.utils.translation.add_translation_helpers",
 ]
 
 website_generators = ["Website Item", "Item Group"]
@@ -30,6 +34,7 @@ override_doctype_class = {
     "Payment Request": "webshop.webshop.doctype.override_doctype.payment_request.PaymentRequest",
     "Item Group": "webshop.webshop.doctype.override_doctype.item_group.WebshopItemGroup",
     "Item": "webshop.webshop.doctype.override_doctype.item.WebshopItem",
+    "Blog Post": "webshop.webshop.doctype.override_doctype.blog_post.BlogPost",
 }
 
 doctype_js = {
@@ -43,12 +48,55 @@ doc_events = {
             "webshop.webshop.crud_events.item.update_website_item.execute",
             "webshop.webshop.crud_events.item.invalidate_item_variants_cache.execute",
             "webshop.webshop.crud_events.item.sync_kitchen_item.execute",
+            "webshop.webshop.utils.translation.clear_translation_cache",
         ],
         "before_rename": [
             "webshop.webshop.crud_events.item.validate_duplicate_website_item.execute",
         ],
         "after_rename": [
             "webshop.webshop.crud_events.item.invalidate_item_variants_cache.execute",
+        ],
+    },
+    "Item Group": {
+        "on_update": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+        ],
+        "on_trash": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+        ],
+    },
+    "Website Item": {
+        "on_update": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+            "webshop.webshop.utils.translation.clear_translation_cache",
+        ],
+        "on_trash": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+            "webshop.webshop.utils.translation.clear_translation_cache",
+        ],
+    },
+    "Brand": {
+        "on_update": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+        ],
+        "on_trash": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+        ],
+    },
+    "Item Product Category": {
+        "on_update": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+        ],
+        "on_trash": [
+            "webshop.webshop.product_data_engine.filters.clear_filter_cache",
+        ],
+    },
+    "Translation": {
+        "on_update": [
+            "webshop.webshop.utils.translation.clear_translation_cache",
+        ],
+        "on_trash": [
+            "webshop.webshop.utils.translation.clear_translation_cache",
         ],
     },
     "Sales Taxes and Charges Template": {
@@ -77,3 +125,7 @@ has_website_permission = {
     "Website Item": "webshop.webshop.doctype.website_item.website_item.has_website_permission_for_website_item",
     "Item Group": "webshop.webshop.doctype.website_item.website_item.has_website_permission_for_item_group"
 }
+
+# Fixtures
+# --------
+fixtures = ["Custom Field", "Property Setter"]

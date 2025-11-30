@@ -6,7 +6,6 @@ from whoosh.fields import ID, KEYWORD, TEXT, Schema
 from whoosh.qparser import FieldsPlugin, MultifieldParser, WildcardPlugin
 from whoosh.query import Prefix
 
-# TODO: Make obsolete
 INDEX_NAME = "products"
 
 

@@ -25,7 +25,14 @@ def set_cart_count(quotation=None):
 	if cint(frappe.db.get_singles_value("Webshop Settings", "enabled")):
 		if not quotation:
 			quotation = _get_cart_quotation()
-		cart_count = cstr(cint(quotation.get("total_qty")))
+		
+		# total_qty'yi items üzerinden doğrudan hesapla
+		if quotation and quotation.get("items"):
+			cart_count = sum(flt(item.qty) for item in quotation.items if not item.get("is_alternative", 0))
+		else:
+			cart_count = quotation.get("total_qty") if quotation else 0
+		
+		cart_count = cstr(cint(cart_count))
 
 		if hasattr(frappe.local, "cookie_manager"):
 			frappe.local.cookie_manager.set_cookie("cart_count", cart_count)
@@ -96,7 +103,6 @@ def place_order():
 	quotation.submit()
 
 	if quotation.quotation_to == "Lead" and quotation.party_name:
-		# company used to create customer accounts
 		frappe.defaults.set_user_default("company", quotation.company)
 
 	if not (quotation.shipping_address_name or quotation.customer_address):
@@ -153,7 +159,7 @@ def request_for_quotation():
 
 
 @frappe.whitelist()
-def update_cart(item_code, qty, additional_notes=None, with_items=False):
+def update_cart(item_code, qty, additional_notes=None, with_items=False, uom=None):
 	quotation = _get_cart_quotation()
 
 	empty_card = False
@@ -170,6 +176,24 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			"Website Item", {"item_code": item_code}, "website_warehouse"
 		)
 
+		default_stock_uom, default_sales_uom = frappe.db.get_value(
+			"Item", item_code, ["stock_uom", "sales_uom"]
+		) or (None, None)
+
+		if not uom:
+			uom = default_sales_uom or default_stock_uom
+
+		conversion_factor = 1
+		if uom and default_stock_uom and uom != default_stock_uom:
+			conversion_factor = (
+				frappe.db.get_value(
+					"UOM Conversion Detail",
+					{"parent": item_code, "uom": uom},
+					"conversion_factor",
+				)
+				or 1
+			)
+
 		quotation_items = quotation.get("items", {"item_code": item_code})
 		if not quotation_items:
 			quotation.append(
@@ -178,6 +202,8 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 					"doctype": "Quotation Item",
 					"item_code": item_code,
 					"qty": qty,
+					"uom": uom,
+					"conversion_factor": conversion_factor,
 					"additional_notes": additional_notes,
 					"warehouse": warehouse,
 				},
@@ -186,6 +212,10 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			quotation_items[0].qty = qty
 			quotation_items[0].warehouse = warehouse
 			quotation_items[0].additional_notes = additional_notes
+			if uom:
+				quotation_items[0].uom = uom
+			if conversion_factor:
+				quotation_items[0].conversion_factor = conversion_factor
 
 	apply_cart_settings(quotation=quotation)
 
@@ -193,13 +223,16 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 	quotation.payment_schedule = []
 	if not empty_card:
 		quotation.save()
+		# Save sonrası total_qty'nin güncellenmesi için reload et
+		frappe.db.commit()
+		quotation.reload()
 	else:
 		quotation.delete()
 		quotation = None
 
 	set_cart_count(quotation)
 
-	if cint(with_items):
+	if cint(with_items) and quotation:
 		context = get_cart_quotation(quotation)
 		return {
 			"items": frappe.render_template(
@@ -213,7 +246,7 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			),
 		}
 	else:
-		return {"name": quotation.name}
+		return {"name": quotation.name if quotation else None}
 
 
 @frappe.whitelist()
@@ -335,7 +368,6 @@ def decorate_quotation_doc(doc):
 		item_code = d.item_code
 		fields = ["web_item_name", "thumbnail", "website_image", "description", "route"]
 
-		# Variant Item
 		if not frappe.db.exists("Website Item", {"item_code": item_code}):
 			variant_data = frappe.db.get_values(
 				"Item",
@@ -347,7 +379,7 @@ def decorate_quotation_doc(doc):
 			fields = fields[1:]
 			d.web_item_name = variant_data.item_name
 
-			if variant_data.image:  # get image from variant or template web item
+			if variant_data.image:
 				d.thumbnail = variant_data.image
 				fields = fields[2:]
 
@@ -357,7 +389,6 @@ def decorate_quotation_doc(doc):
 			)
 		)
 
-		# Eğer thumbnail yoksa, Item'dan image al
 		if not d.get("thumbnail"):
 			item_image = frappe.db.get_value("Item", d.item_code, "image")
 			if item_image:
@@ -377,7 +408,6 @@ def _get_cart_quotation(party=None):
 	if not party:
 		party = get_party()
 
-	# Get actual email from User table instead of session.user (which might be "Administrator")
 	user_email = frappe.db.get_value("User", frappe.session.user, "email") or frappe.session.user
 
 	quotation = frappe.get_all(
@@ -470,41 +500,33 @@ def apply_cart_settings(party=None, quotation=None):
 
 
 def set_price_list_and_rate(quotation, cart_settings):
-	"""set price list based on billing territory"""
-
 	_set_price_list(cart_settings, quotation)
 
-	# reset values
 	quotation.price_list_currency = (
 		quotation.currency
 	) = quotation.plc_conversion_rate = quotation.conversion_rate = None
 	for item in quotation.get("items"):
 		item.price_list_rate = item.discount_percentage = item.rate = item.amount = None
 
-	# refetch values
 	quotation.run_method("set_price_list_and_item_details")
 
 	if hasattr(frappe.local, "cookie_manager"):
-		# set it in cookies for using in product page
 		frappe.local.cookie_manager.set_cookie(
 			"selling_price_list", quotation.selling_price_list
 		)
 
 
 def _set_price_list(cart_settings, quotation=None):
-	"""Set price list based on customer or shopping cart default"""
 	from erpnext.accounts.party import get_default_price_list
 
 	party_name = quotation.get("party_name") if quotation else get_party().get("name")
 	selling_price_list = None
 
-	# check if default customer price list exists
 	if party_name and frappe.db.exists("Customer", party_name):
 		selling_price_list = get_default_price_list(
 			frappe.get_doc("Customer", party_name)
 		)
 
-	# check default price list in shopping cart
 	if not selling_price_list:
 		selling_price_list = cart_settings.price_list
 
@@ -515,7 +537,6 @@ def _set_price_list(cart_settings, quotation=None):
 
 
 def set_taxes(quotation, cart_settings):
-	"""set taxes based on billing territory"""
 	from erpnext.accounts.party import set_taxes
 
 	customer_group = frappe.db.get_value(
@@ -534,11 +555,8 @@ def set_taxes(quotation, cart_settings):
 		shipping_address=quotation.shipping_address_name,
 		use_for_shopping_cart=1,
 	)
-	#
-	# 	# clear table
+
 	quotation.set("taxes", [])
-	#
-	# 	# append taxes
 	quotation.append_taxes_from_master()
 	quotation.append_taxes_from_item_tax_template()
 
@@ -725,8 +743,6 @@ def get_applicable_shipping_rules(party=None, quotation=None):
 	shipping_rules = get_shipping_rules(quotation)
 
 	if shipping_rules:
-		rule_label_map = frappe.db.get_values("Shipping Rule", shipping_rules, "label")
-		# we need this in sorted order as per the position of the rule in the settings page
 		return [[rule, rule] for rule in shipping_rules]
 
 
@@ -757,7 +773,6 @@ def get_shipping_rules(quotation=None, cart_settings=None):
 
 
 def get_address_territory(address_name):
-	"""Tries to match city, state and country of address to existing territory"""
 	territory = None
 
 	if address_name:
@@ -778,8 +793,6 @@ def show_terms(doc):
 
 @frappe.whitelist(allow_guest=True)
 def apply_coupon_code(applied_code, applied_referral_sales_partner):
-	quotation = True
-
 	if not applied_code:
 		frappe.throw(_("Please enter a coupon code"))
 
@@ -817,9 +830,6 @@ def remove_coupon_code():
 	quotation.coupon_code = ""
 	quotation.referral_sales_partner = ""
 	quotation.flags.ignore_permissions = True
-
-	# reset discount amount if coupon code is removed (on desk it is done in client side)
-	# as we are enabling ignore_pricing_rule, so we also need to manually reset discount percentage
 	quotation.discount_amount = 0
 	quotation.additional_discount_percentage = 0
 	quotation.ignore_pricing_rule = 1

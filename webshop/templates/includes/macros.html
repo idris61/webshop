@@ -74,7 +74,15 @@
 {%- set col_size = 3 if is_full_width else 4 -%}
 {%- set title = item.web_item_name or item.item_name or item.item_code -%}
 {%- set title = title[:50] + "..." if title|len > 50 else title -%}
-{%- set image = item.website_image -%}
+{%- set image = item.website_image or item.thumbnail -%}
+{%- if not image and item.variant_of -%}
+	{%- set template_web_item = frappe.db.get_value("Website Item", {"item_code": item.variant_of}, ["website_image", "thumbnail"], as_dict=True) -%}
+	{%- if template_web_item and template_web_item.website_image -%}
+		{%- set image = template_web_item.website_image -%}
+	{%- elif template_web_item and template_web_item.thumbnail -%}
+		{%- set image = template_web_item.thumbnail -%}
+	{%- endif -%}
+{%- endif -%}
 {%- set description = item.website_description or item.description-%}
 
 {% if is_featured %}
@@ -138,7 +146,37 @@
 		</div>
 	{% else %}
 		{% if template != "Product Card" %}
-		<div class="product-category">{{ item.item_group or '' }}</div>
+		<div class="product-category">{{ _(item.item_group) or '' }}</div>
+		
+		<!-- Product Categories -->
+		{% if item.product_categories %}
+		<div class="product-categories" style="font-size: 11px; color: #7f8c8d; margin-top: 4px;">
+			{% for category in item.product_categories[:3] %}
+			<span class="badge badge-secondary mr-1" style="background-color: #ecf0f1; color: #34495e; padding: 2px 6px;">{{ category }}</span>
+			{% endfor %}
+			{% if item.product_categories|length > 3 %}
+			<span class="text-muted">+{{ item.product_categories|length - 3 }}</span>
+			{% endif %}
+		</div>
+		{% endif %}
+		
+		<!-- Product Badges -->
+		{% if item.product_badges %}
+		<div class="product-badges mt-2 d-flex align-items-center flex-wrap" style="gap: 4px;">
+			{% for badge in item.product_badges[:3] %}
+			{% if badge.badge_image %}
+			{% if badge.badge_link %}
+			<a href="{{ badge.badge_link }}" target="_blank" rel="noopener noreferrer">
+			{% endif %}
+			<img src="{{ badge.badge_image }}" alt="{{ badge.badge_alt_text or badge.badge_name }}" style="max-height: 24px; max-width: 60px; object-fit: contain;" loading="lazy">
+			{% if badge.badge_link %}
+			</a>
+			{% endif %}
+			{% endif %}
+			{% endfor %}
+		</div>
+		{% endif %}
+		
 		{% if item.supplier %}
 		<div class="product-supplier" style="font-size: 12px; color: #95a5a6; margin-top: 4px;">
 			<svg style="width: 12px; height: 12px; margin-right: 4px;" fill="currentColor" viewBox="0 0 20 20">
@@ -183,7 +221,7 @@
 <div class="card-body card-body-flex text-left" style="width: 100%;">
 	<div class="mt-4">
 		<div class="product-title">{{ _(title) or ''}}</div>
-		<div class="product-category">{{ _(item.item_group) or '' }}</div>
+		<div class="product-category">{{ _(item.item_group or '') or '' }}</div>
 	</div>
 	<div  class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
 		{{ item.get("formatted_price") or '' }}
@@ -260,11 +298,11 @@
 			</div>
 			<div class="row">
 				<div class="col-md-7">
-					<div class="progress rating-progress-bar" title="{{ percent }} % of reviews are {{ loop.index }} star">
+					<div class="progress rating-progress-bar" title="{{ percent }}% of reviews are {{ loop.index }} star">
 						<div class="progress-bar progress-bar-cosmetic" role="progressbar"
 							aria-valuenow="{{ percent }}"
 							aria-valuemin="0" aria-valuemax="100"
-							style="width: {{ percent }}%;">
+							style="wid
 						</div>
 					</div>
 				</div>
@@ -305,48 +343,57 @@
 	{%- set item_field = field_filter[0] %}
 	{%- set values = field_filter[1] %}
 	
-	{% if item_field.fieldtype == "Check" or (item_field.fieldtype == "Select" and values == ["Evet"]) %}
-		<div class="mb-4 filter-block pb-5">
-			<div class="checkbox">
+	{# Boş değerleri filtrele - values'ı olduğu gibi kullan, template'te if kontrolü yapılacak #}
+	{%- set filtered_values = values if values else [] %}
+	
+	{# Icon mapping #}
+	{%- set field_icons = {
+		"brand": "fa-tag",
+		"supplier": "fa-building",
+		"primary_supplier": "fa-building"
+	} %}
+	{%- set field_icon = field_icons.get(item_field.fieldname, "fa-filter") %}
+	
+	{% if item_field.fieldtype == "Check" or (item_field.fieldtype == "Select" and filtered_values == ["Yes"]) %}
+		<div class="mb-4 filter-block pb-4">
+			<div class="filter-lookup-wrapper checkbox">
 				<label for="{{item_field.fieldname}}">
 					<input type="checkbox"
 						class="product-filter field-filter"
 						id="{{item_field.fieldname}}"
 						data-filter-name="{{ item_field.fieldname }}"
-						data-filter-value="Evet"
-						style="width: 14px !important">
+						data-filter-value="Yes">
 					<span class="label-area">{{ _(item_field.label) }}</span>
 				</label>
 			</div>
 		</div>
-	{% else %}
-		<div class="mb-4 filter-block pb-5">
-			<div class="filter-label mb-3">{{ _(item_field.label) }}</div>
+	{% elif filtered_values | len > 0 %}
+		<div class="mb-4 filter-block pb-4">
+			<div class="filter-label mb-3">
+				<i class="fa {{ field_icon }} mr-2"></i>{{ _(item_field.label) }}
+			</div>
 
-			{% if values and values | len > 20 %}
+			{% if filtered_values | len > 15 %}
 			<input type="text" class="form-control form-control-sm mb-2 filter-lookup-input" 
-				placeholder="_('Search') {{ _(item_field.label) + 's' }}"/>
+				placeholder="{{ _('Search') }} {{ _(item_field.label) }}"/>
 			{% endif %}
 
-			{% if values and values | len > 0 %}
-			<div class="filter-options">
-				{% for value in values %}
+			<div class="filter-options" style="max-height: 300px; overflow-y: auto;">
+				{% for value in filtered_values %}
+				{% if value %}
 				<div class="filter-lookup-wrapper checkbox" data-value="{{ value }}">
 					<label for="{{value}}">
 						<input type="checkbox"
 							class="product-filter field-filter"
 							id="{{value}}"
 							data-filter-name="{{ item_field.fieldname }}"
-							data-filter-value="{{ value }}"
-							style="width: 14px !important">
+							data-filter-value="{{ value }}">
 						<span class="label-area">{{ _(value) }}</span>
 					</label>
 				</div>
+				{% endif %}
 				{% endfor %}
 			</div>
-			{% else %}
-			<i class="text-muted">{{ _('No values') }}</i>
-			{% endif %}
 		</div>
 	{% endif %}
 {% endfor %}
@@ -354,34 +401,34 @@
 
 {%- macro attribute_filter_section(filters)-%}
 {% for attribute in filters %}
-	<div class="mb-4 filter-block pb-5">
-		<div class="filter-label mb-3">{{ _(attribute.name) }}</div>
-		{% if attribute.item_attribute_values | len > 20 %}
-		<!-- show inline filter if values more than 20 -->
-		<input type="text" class="form-control form-control-sm mb-2 filter-lookup-input" placeholder="_('Search') {{ _(attribute.name) + 's' }}"/>
+	{% if attribute.item_attribute_values and attribute.item_attribute_values | len > 0 %}
+	<div class="mb-4 filter-block pb-4">
+		<div class="filter-label mb-3">
+			<i class="fa fa-list-ul mr-2"></i>{{ _(attribute.name) }}
+		</div>
+		{% if attribute.item_attribute_values | len > 15 %}
+		<!-- show inline filter if values more than 15 -->
+		<input type="text" class="form-control form-control-sm mb-2 filter-lookup-input" placeholder="{{ _('Search') }} {{ _(attribute.name) }}"/>
 		{% endif %}
 
-		{% if attribute.item_attribute_values %}
-		<div class="filter-options">
+		<div class="filter-options" style="max-height: 300px; overflow-y: auto;">
 			{% for attr_value in attribute.item_attribute_values %}
+			{% if attr_value %}
 			<div class="filter-lookup-wrapper checkbox" data-value="{{ attr_value }}">
 				<label data-value="{{ attr_value }}">
 					<input type="checkbox"
 						class="product-filter attribute-filter"
 						id="{{ attr_value }}"
 						data-attribute-name="{{ attribute.name }}"
-						data-attribute-value="{{ attr_value }}"
-						style="width: 14px !important"
-						{% if attr_value.checked %} checked {% endif %}>
-						<span class="label-area">{{ _(attr_value) }}</span>
+						data-attribute-value="{{ attr_value }}">
+					<span class="label-area">{{ _(attr_value) }}</span>
 				</label>
 			</div>
+			{% endif %}
 			{% endfor %}
 		</div>
-		{% else %}
-		<i class="text-muted">{{ _('No values') }}</i>
-		{% endif %}
 	</div>
+	{% endif %}
 {% endfor %}
 {%- endmacro -%}
 

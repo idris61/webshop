@@ -2,7 +2,7 @@
 
 {% block title %} {{ _("Wishlist") }} {% endblock %}
 
-{% block header %}<h3 class="shopping-cart-header mt-2 mb-6">{{ _("Wishlist") }}</h1>{% endblock %}
+{% block header %}<h3 class="shopping-cart-header mt-2 mb-6">{{ _("Wishlist") }}</h3>{% endblock %}
 
 {% block page_content %}
 {% if items %}
@@ -21,7 +21,7 @@
 		<div class="cart-empty-state">
 			<img src="/assets/webshop/images/cart-empty-state.png" alt="Empty Cart">
 		</div>
-		<div class="cart-empty-message mt-4">{{ _('Wishlist is empty!') }}</p>
+		<div class="cart-empty-message mt-4">{{ _('Wishlist is empty!') }}</div>
 	</div>
 {% endif %}
 

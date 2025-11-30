@@ -1,0 +1,185 @@
+// ============================================
+// WEBSHOP SCSS VARIABLES
+// ============================================
+
+// ============================================
+// COLORS
+// ============================================
+
+// Primary Colors
+$primary-color: #ff6b35;
+$primary-hover: #f7931e;
+$primary-light: rgba(255, 107, 53, 0.1);
+$primary-dark: #e55a2b;
+
+// Secondary Colors
+$secondary-color: #2c3e50;
+$secondary-light: #34495e;
+$secondary-dark: #1a252f;
+
+// Accent Colors
+$accent-blue: #3a7bd5;
+$accent-green: #38A160;
+$accent-red: #e74c3c;
+$accent-purple: #667eea;
+$accent-pink: #ee0979;
+
+// Text Colors
+$text-dark: #2c3e50;
+$text-base: #34495e;
+$text-muted: #7f8c8d;
+$text-light: #95a5a6;
+$text-white: #ffffff;
+
+// Gray Scale
+$gray-50: #f8f9fa;
+$gray-100: #f0f0f0;
+$gray-200: #e0e0e0;
+$gray-300: #d1d8dd;
+$gray-400: #b8c2cc;
+$gray-500: #95a5a6;
+$gray-600: #6c757d;
+$gray-700: #495057;
+$gray-800: #343a40;
+$gray-900: #212529;
+
+// Status Colors
+$success-color: #38A160;
+$error-color: #F47A7A;
+$warning-color: #f7931e;
+$info-color: #3a7bd5;
+
+// Background Colors
+$bg-white: #ffffff;
+$bg-light: #f8f9fa;
+$bg-gray: #f9fafa;
+
+// Border Colors
+$border-light: #e9ecef;
+$border-base: #d1d8dd;
+$border-dark: #b8c2cc;
+
+// ============================================
+// TYPOGRAPHY
+// ============================================
+
+// Font Sizes
+$font-size-xs: 11px;
+$font-size-sm: 13px;
+$font-size-base: 14px;
+$font-size-md: 16px;
+$font-size-lg: 18px;
+$font-size-xl: 20px;
+$font-size-2xl: 24px;
+$font-size-3xl: 36px;
+
+// Font Weights
+$font-weight-light: 300;
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Line Heights
+$line-height-tight: 1.2;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.6;
+
+// Letter Spacing
+$letter-spacing-tight: -0.5px;
+$letter-spacing-normal: 0;
+$letter-spacing-wide: 0.5px;
+
+// ============================================
+// SPACING
+// ============================================
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 20px;
+$spacing-2xl: 24px;
+$spacing-3xl: 32px;
+$spacing-4xl: 48px;
+
+// ============================================
+// BORDER RADIUS
+// ============================================
+
+$radius-xs: 4px;
+$radius-sm: 6px;
+$radius-md: 8px;
+$radius-lg: 12px;
+$radius-xl: 18px;
+$radius-full: 50%;
+$radius-round: 100px;
+
+// ============================================
+// SHADOWS
+// ============================================
+
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow-base: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+$shadow-xl: 0 12px 24px rgba(0, 0, 0, 0.15);
+$shadow-2xl: 0 16px 60px rgba(0, 0, 0, 0.08), 0 8px 30px -20px rgba(0, 0, 0, 0.04);
+
+// Primary Color Shadows
+$shadow-primary-sm: 0 4px 6px rgba($primary-color, 0.25);
+$shadow-primary-md: 0 6px 20px rgba($primary-color, 0.4);
+
+// ============================================
+// TRANSITIONS
+// ============================================
+
+$transition-fast: 0.2s ease;
+$transition-base: 0.3s ease;
+$transition-slow: 0.4s ease;
+$transition-bounce: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+// ============================================
+// BREAKPOINTS
+// ============================================
+
+$breakpoint-xs: 576px;
+$breakpoint-sm: 768px;
+$breakpoint-md: 992px;
+$breakpoint-lg: 1200px;
+$breakpoint-xl: 1400px;
+
+// ============================================
+// Z-INDEX
+// ============================================
+
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// ============================================
+// GRADIENTS
+// ============================================
+
+$gradient-primary: linear-gradient(135deg, $primary-color 0%, $primary-hover 100%);
+$gradient-purple: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+$gradient-orange: linear-gradient(135deg, $primary-color 0%, $primary-hover 100%);
+$gradient-green: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+$gradient-pink: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+$gradient-blue: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+$gradient-bg: linear-gradient(to bottom, $gray-50 0%, $bg-white 300px);
+
+
+
+
+
+
+
+
+
+
+

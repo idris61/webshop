@@ -1,0 +1,357 @@
+// ============================================
+// WEBSHOP SCSS MIXINS
+// ============================================
+
+@import "variables";
+
+// ============================================
+// RESPONSIVE MIXINS
+// ============================================
+
+@mixin respond-to($breakpoint) {
+	@if $breakpoint == xs {
+		@media (max-width: $breakpoint-xs - 1px) {
+			@content;
+		}
+	} @else if $breakpoint == sm {
+		@media (max-width: $breakpoint-sm - 1px) {
+			@content;
+		}
+	} @else if $breakpoint == md {
+		@media (max-width: $breakpoint-md - 1px) {
+			@content;
+		}
+	} @else if $breakpoint == lg {
+		@media (max-width: $breakpoint-lg - 1px) {
+			@content;
+		}
+	} @else if $breakpoint == xl {
+		@media (max-width: $breakpoint-xl - 1px) {
+			@content;
+		}
+	} @else {
+		@media (max-width: $breakpoint) {
+			@content;
+		}
+	}
+}
+
+@mixin respond-from($breakpoint) {
+	@if $breakpoint == xs {
+		@media (min-width: $breakpoint-xs) {
+			@content;
+		}
+	} @else if $breakpoint == sm {
+		@media (min-width: $breakpoint-sm) {
+			@content;
+		}
+	} @else if $breakpoint == md {
+		@media (min-width: $breakpoint-md) {
+			@content;
+		}
+	} @else if $breakpoint == lg {
+		@media (min-width: $breakpoint-lg) {
+			@content;
+		}
+	} @else if $breakpoint == xl {
+		@media (min-width: $breakpoint-xl) {
+			@content;
+		}
+	} @else {
+		@media (min-width: $breakpoint) {
+			@content;
+		}
+	}
+}
+
+// ============================================
+// BUTTON MIXINS
+// ============================================
+
+@mixin button-primary {
+	background: $gradient-primary;
+	border: none;
+	color: $text-white;
+	padding: $spacing-md $spacing-2xl;
+	border-radius: $radius-md;
+	font-weight: $font-weight-semibold;
+	transition: all $transition-base;
+	text-transform: uppercase;
+	letter-spacing: $letter-spacing-wide;
+	box-shadow: $shadow-primary-sm;
+	cursor: pointer;
+	
+	&:hover {
+		transform: scale(1.05);
+		box-shadow: $shadow-primary-md;
+		color: $text-white;
+	}
+	
+	&:active {
+		transform: scale(0.98);
+	}
+	
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		transform: none;
+	}
+}
+
+@mixin button-secondary {
+	background: $bg-white;
+	border: 1px solid $border-base;
+	color: $text-dark;
+	padding: $spacing-md $spacing-2xl;
+	border-radius: $radius-md;
+	font-weight: $font-weight-medium;
+	transition: all $transition-base;
+	cursor: pointer;
+	
+	&:hover {
+		background: $gray-50;
+		border-color: $primary-color;
+		color: $primary-color;
+	}
+}
+
+@mixin button-ghost {
+	background: transparent;
+	border: 1px solid $primary-color;
+	color: $primary-color;
+	padding: $spacing-md $spacing-2xl;
+	border-radius: $radius-md;
+	font-weight: $font-weight-medium;
+	transition: all $transition-base;
+	cursor: pointer;
+	
+	&:hover {
+		background: $primary-color;
+		color: $text-white;
+	}
+}
+
+// ============================================
+// CARD MIXINS
+// ============================================
+
+@mixin card-base {
+	background: $bg-white;
+	border-radius: $radius-lg;
+	border: 1px solid $border-light;
+	transition: all $transition-bounce;
+}
+
+@mixin card-hover {
+	@include card-base;
+	
+	&:hover {
+		transform: translateY(-8px);
+		box-shadow: $shadow-xl;
+		border-color: $primary-color;
+	}
+}
+
+@mixin card-shadow {
+	box-shadow: $shadow-base;
+	
+	&:hover {
+		box-shadow: $shadow-2xl;
+	}
+}
+
+// ============================================
+// FLEXBOX MIXINS
+// ============================================
+
+@mixin flex($display: flex, $justify: null, $align: null, $direction: null, $wrap: null) {
+	display: $display;
+	
+	@if $justify {
+		justify-content: $justify;
+	}
+	
+	@if $align {
+		align-items: $align;
+	}
+	
+	@if $direction {
+		flex-direction: $direction;
+	}
+	
+	@if $wrap {
+		flex-wrap: $wrap;
+	}
+}
+
+@mixin flex-center {
+	@include flex(flex, center, center);
+}
+
+@mixin flex-between {
+	@include flex(flex, space-between, center);
+}
+
+// ============================================
+// TYPOGRAPHY MIXINS
+// ============================================
+
+@mixin text-truncate {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@mixin text-clamp($lines: 2) {
+	display: -webkit-box;
+	-webkit-line-clamp: $lines;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+@mixin heading($size: md, $weight: $font-weight-semibold) {
+	font-weight: $weight;
+	
+	@if $size == xs {
+		font-size: $font-size-xs;
+	} @else if $size == sm {
+		font-size: $font-size-sm;
+	} @else if $size == base {
+		font-size: $font-size-base;
+	} @else if $size == md {
+		font-size: $font-size-md;
+	} @else if $size == lg {
+		font-size: $font-size-lg;
+	} @else if $size == xl {
+		font-size: $font-size-xl;
+	} @else if $size == 2xl {
+		font-size: $font-size-2xl;
+	} @else if $size == 3xl {
+		font-size: $font-size-3xl;
+	}
+}
+
+// ============================================
+// INPUT MIXINS
+// ============================================
+
+@mixin input-base {
+	width: 100%;
+	padding: $spacing-md $spacing-lg;
+	font-size: $font-size-base;
+	border: 1px solid $border-base;
+	border-radius: $radius-xs;
+	background: $bg-white;
+	transition: all $transition-base;
+	
+	&:focus {
+		outline: none;
+		border-color: $primary-color;
+		box-shadow: 0 0 0 3px $primary-light;
+	}
+	
+	&:disabled {
+		background: $gray-100;
+		opacity: 0.65;
+		cursor: not-allowed;
+	}
+}
+
+// ============================================
+// ANIMATION MIXINS
+// ============================================
+
+@mixin animation-wiggle {
+	animation: wiggle 0.5s linear;
+}
+
+@mixin animation-expand {
+	animation: expand cubic-bezier(0.04, 0.4, 0.5, 0.95) 1.6s forwards 1;
+}
+
+@mixin animation-shimmer {
+	animation: shimmer 3s infinite;
+}
+
+// ============================================
+// GRADIENT MIXINS
+// ============================================
+
+@mixin gradient-primary {
+	background: $gradient-primary;
+}
+
+@mixin gradient-purple {
+	background: $gradient-purple;
+}
+
+@mixin gradient-orange {
+	background: $gradient-orange;
+}
+
+@mixin gradient-green {
+	background: $gradient-green;
+}
+
+@mixin gradient-pink {
+	background: $gradient-pink;
+}
+
+@mixin gradient-blue {
+	background: $gradient-blue;
+}
+
+// ============================================
+// UTILITY MIXINS
+// ============================================
+
+@mixin visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border-width: 0;
+}
+
+@mixin clearfix {
+	&::after {
+		content: "";
+		display: table;
+		clear: both;
+	}
+}
+
+@mixin scrollbar($width: 8px, $thumb-color: $gray-400, $track-color: $gray-100) {
+	&::-webkit-scrollbar {
+		width: $width;
+		height: $width;
+	}
+	
+	&::-webkit-scrollbar-track {
+		background: $track-color;
+	}
+	
+	&::-webkit-scrollbar-thumb {
+		background: $thumb-color;
+		border-radius: $radius-full;
+		
+		&:hover {
+			background: darken($thumb-color, 10%);
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+

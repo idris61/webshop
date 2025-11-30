@@ -27,14 +27,37 @@
 	{% if show_language_picker %}
 		<li class="nav-item dropdown" id="language-picker-nav">
 			<a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-				🌐 {{ frappe.lang|upper }}
+				{% set current_lang = frappe.lang|upper %}
+				{% if current_lang == 'TR' %}
+					<span class="flag-icon flag-icon-tr"></span> {{ current_lang }}
+				{% elif current_lang == 'EN' %}
+					<span class="flag-icon flag-icon-gb"></span> {{ current_lang }}
+				{% elif current_lang == 'DE' %}
+					<span class="flag-icon flag-icon-de"></span> {{ current_lang }}
+				{% elif current_lang == 'FR' %}
+					<span class="flag-icon flag-icon-fr"></span> {{ current_lang }}
+				{% elif current_lang == 'IT' %}
+					<span class="flag-icon flag-icon-it"></span> {{ current_lang }}
+				{% else %}
+					<span class="flag-icon flag-icon-un"></span> {{ current_lang }}
+				{% endif %}
 			</a>
 			<div class="dropdown-menu dropdown-menu-right">
-				<a class="dropdown-item" href="?_lang=tr">Türkçe</a>
-				<a class="dropdown-item" href="?_lang=en">English</a>
-				<a class="dropdown-item" href="?_lang=de">Deutsch</a>
-				<a class="dropdown-item" href="?_lang=fr">Français</a>
-				<a class="dropdown-item" href="?_lang=it">Italiano</a>
+				<a class="dropdown-item" href="?_lang=tr">
+					<span class="flag-icon flag-icon-tr" style="margin-right: 8px;"></span> Türkçe
+				</a>
+				<a class="dropdown-item" href="?_lang=en">
+					<span class="flag-icon flag-icon-gb" style="margin-right: 8px;"></span> English
+				</a>
+				<a class="dropdown-item" href="?_lang=de">
+					<span class="flag-icon flag-icon-de" style="margin-right: 8px;"></span> Deutsch
+				</a>
+				<a class="dropdown-item" href="?_lang=fr">
+					<span class="flag-icon flag-icon-fr" style="margin-right: 8px;"></span> Français
+				</a>
+				<a class="dropdown-item" href="?_lang=it">
+					<span class="flag-icon flag-icon-it" style="margin-right: 8px;"></span> Italiano
+				</a>
 			</div>
 		</li>
 	{% endif %}
