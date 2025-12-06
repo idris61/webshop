@@ -477,14 +477,25 @@ $.extend(shopping_cart, {
 	},
 
 	bind_place_order() {
+		let is_placing_order = false; // Double-click önleme flag'i
+		
 		$('.page_content').on('click', '.btn-place-order', (e) => {
 			e.preventDefault();
 			const $btn = $(e.currentTarget);
+			
+			// Eğer zaten bir sipariş oluşturma işlemi devam ediyorsa, yeni tıklamayı yok say
+			if (is_placing_order || $btn.prop('disabled')) {
+				console.log("Place order: Already in progress, ignoring click");
+				return;
+			}
+			
 			$btn.prop('disabled', true);
+			is_placing_order = true;
 
 			if (frappe.session.user === "Guest") {
 				handleGuestUser();
 				$btn.prop('disabled', false);
+				is_placing_order = false;
 				return;
 			}
 
@@ -494,6 +505,7 @@ $.extend(shopping_cart, {
 				method: "webshop.webshop.shopping_cart.cart.place_order",
 				callback: (r) => {
 					shopping_cart.unfreeze();
+					is_placing_order = false;
 					$btn.prop('disabled', false);
 
 					if (r.exc) {
@@ -502,16 +514,54 @@ $.extend(shopping_cart, {
 							indicator: 'red'
 						}, 5);
 						console.error("Place order error:", r.exc);
+						return;
 					} else if (r.message) {
-						frappe.show_alert({
-							message: __("Sipariş başarıyla oluşturuldu"),
-							indicator: 'green'
-						}, 3);
+						const response = r.message;
+						console.log("Place order response:", response);
 						
-						setTimeout(() => {
-							window.location.href = `/order?doctype=Sales Order&name=${r.message}`;
-						}, 1000);
+						// Eğer ödeme URL'si varsa direkt ödeme ekranına yönlendir
+						if (response.redirect_to_payment && response.payment_url) {
+							console.log("Redirecting to payment URL:", response.payment_url);
+							frappe.show_alert({
+								message: __("Sipariş başarıyla oluşturuldu, ödeme ekranına yönlendiriliyorsunuz..."),
+								indicator: 'green'
+							}, 2);
+							
+							// Ödeme ekranına yönlendir
+							setTimeout(() => {
+								window.location.href = response.payment_url;
+							}, 500);
+						} else {
+							// Ödeme gateway yoksa sipariş sayfasına yönlendir
+							const sales_order_name = response.sales_order || r.message;
+							console.log("No payment URL, redirecting to order page:", sales_order_name);
+							frappe.show_alert({
+								message: __("Sipariş başarıyla oluşturuldu"),
+								indicator: 'green'
+							}, 3);
+							
+							setTimeout(() => {
+								window.location.href = `/order?doctype=Sales Order&name=${sales_order_name}`;
+							}, 1000);
+						}
+					} else {
+						console.warn("Place order: Unexpected response format", r);
+						frappe.show_alert({
+							message: __("Sipariş oluşturuldu ancak beklenmeyen bir yanıt alındı"),
+							indicator: 'orange'
+						}, 5);
 					}
+				},
+				error: (r) => {
+					// Network hatası veya timeout durumunda
+					shopping_cart.unfreeze();
+					is_placing_order = false;
+					$btn.prop('disabled', false);
+					frappe.show_alert({
+						message: __("Sipariş oluşturulurken bir hata oluştu. Lütfen tekrar deneyin."),
+						indicator: 'red'
+					}, 5);
+					console.error("Place order network error:", r);
 				}
 			});
 		});

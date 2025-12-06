@@ -98,14 +98,15 @@ webshop.ProductView = class {
 						}
 					}
 
-					// Filtre sayılarını güncelle (mevcut filtrelerle birlikte)
-					if (from_filters && filters) {
-						this.update_filter_counts(filters);
-					}
-
 					if (!from_filters) {
 						this.bind_filters();
 						this.restore_filters_state();
+					}
+
+					// Filtre sayılarını her zaman güncelle (sayfa yüklendiğinde ve filtre değiştiğinde)
+					// restore_filters_state'ten SONRA çağrılmalı ki checkbox'lar işaretlendikten sonra sayılar güncellensin
+					if (filters) {
+						this.update_filter_counts(filters);
 					}
 
 					this.add_paging_section(settings);
@@ -568,6 +569,10 @@ webshop.ProductView = class {
 	}
 
 	update_filter_counts(filters) {
+		if (!filters) {
+			return;
+		}
+		
 		// Item Group filtrelerinin sayılarını güncelle
 		if (filters.item_group_filters && Array.isArray(filters.item_group_filters)) {
 			filters.item_group_filters.forEach(group => {
@@ -578,7 +583,7 @@ webshop.ProductView = class {
 						if ($checkbox.length) {
 							const $countSpan = $checkbox.closest('.filter-lookup-wrapper').find('.text-muted');
 							if ($countSpan.length) {
-								$countSpan.text(`(${child.count})`);
+								$countSpan.text(`(${child.count || 0})`);
 							}
 						}
 					});
@@ -589,7 +594,7 @@ webshop.ProductView = class {
 				if ($checkbox.length) {
 					const $countSpan = $checkbox.closest('.filter-lookup-wrapper').find('.text-muted');
 					if ($countSpan.length) {
-						$countSpan.text(`(${group.count})`);
+						$countSpan.text(`(${group.count || 0})`);
 					}
 				}
 			});
@@ -602,11 +607,36 @@ webshop.ProductView = class {
 				if ($checkbox.length) {
 					const $countSpan = $checkbox.closest('.filter-lookup-wrapper').find('.text-muted');
 					if ($countSpan.length) {
-						$countSpan.text(`(${category.count})`);
+						$countSpan.text(`(${category.count || 0})`);
 					}
 				}
 			});
 		}
+		
+		// Debug: Güncellenen filtre sayılarını logla
+		const itemGroupDetails = filters.item_group_filters?.map(g => ({
+			name: g.name, 
+			count: g.count,
+			is_group: g.is_group,
+			children: g.children?.map(c => ({name: c.name, count: c.count})) || []
+		})) || [];
+		
+		console.log('=== FILTER COUNTS DEBUG ===');
+		console.log('Item Groups:', filters.item_group_filters?.length || 0);
+		console.log('Categories:', filters.product_category_filters?.length || 0);
+		
+		// Her item group için detaylı log
+		itemGroupDetails.forEach((group, index) => {
+			console.log(`Group ${index + 1}:`, group.name, '-> Count:', group.count, '| Is Group:', group.is_group);
+			if (group.children && group.children.length > 0) {
+				group.children.forEach((child, childIndex) => {
+					console.log(`  Child ${childIndex + 1}:`, child.name, '-> Count:', child.count);
+				});
+			}
+		});
+		
+		console.log('Full Item Group Details Array:', JSON.stringify(itemGroupDetails, null, 2));
+		console.log('===========================');
 	}
 
 	re_render_discount_filters(filter_data) {

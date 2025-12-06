@@ -70,9 +70,9 @@ class ProductFiltersBuilder:
 		return root_group
 
 	def _get_base_filters(self):
-		filters = {"published": 1}
-		if frappe.db.get_single_value("Webshop Settings", "hide_variants"):
-			filters["variant_of"] = ["is", "not set"]
+		# Her zaman sadece template items say (variants hariç)
+		# Çünkü product listing sayfası her zaman sadece template items gösteriyor
+		filters = {"published": 1, "variant_of": ["is", "not set"]}
 		return filters
 
 	def _get_item_group_or_filters(self, item_group):
@@ -139,8 +139,15 @@ class ProductFiltersBuilder:
 		
 		# Combine and get unique count (avoid double counting)
 		all_items = set(items_via_field) | set(items_via_child_table)
+		count = len(all_items)
 		
-		return len(all_items)
+		# DEBUG: Sayı hesaplama detayları (kısa format)
+		frappe.log_error(
+			f"COUNT: {item_group_name} -> {count} (field:{len(items_via_field)}, child:{len(items_via_child_table)})",
+			"FILTER_COUNT"
+		)
+		
+		return count
 
 	def get_item_group_filters(self):
 		from webshop.webshop.doctype.override_doctype.item_group import get_child_groups_for_website
@@ -184,6 +191,12 @@ class ProductFiltersBuilder:
 				count = self._count_products_in_group(ig.name, child_group_names)
 			else:
 				count = self._count_products_in_group(ig.name)
+			
+			# DEBUG: Her grup için sayı (kısa format)
+			frappe.log_error(
+				f"GROUP: {ig.name} -> {count} (is_group:{ig.is_group}, param:{self.item_group or 'all'})",
+				"FILTER_COUNT"
+			)
 			
 			if count > 0:
 				translated_label = get_translated_label(ig.name)

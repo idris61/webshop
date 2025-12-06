@@ -4,6 +4,7 @@
 import frappe
 import frappe.defaults
 from frappe import _, throw
+from frappe.exceptions import TimestampMismatchError
 from frappe.contacts.doctype.address.address import get_address_display
 from frappe.contacts.doctype.contact.contact import get_contact_name
 from frappe.utils import cint, cstr, flt, get_fullname
@@ -97,10 +98,30 @@ def get_billing_addresses(party=None):
 def place_order():
 	quotation = _get_cart_quotation()
 	cart_settings = frappe.get_cached_doc("Webshop Settings")
-	quotation.company = cart_settings.company
 
+	# Ensure quotation has correct totals and taxes before submission so that
+	# downstream validations (like payment schedule creation) have a valid grand_total.
+	apply_cart_settings(quotation=quotation)
+
+	quotation.company = cart_settings.company
 	quotation.flags.ignore_permissions = True
-	quotation.submit()
+	# In webshop checkout the quotation can be updated very frequently (stock,
+	# pricing, etc.). To avoid blocking the flow with timestamp mismatch errors,
+	# allow this submission to bypass the optimistic locking check while still
+	# enforcing valid docstatus transitions.
+	quotation.flags.ignore_timestamp_mismatch = True
+
+	# Rarely, quotation may be updated between page load and order placement,
+	# causing a TimestampMismatchError. In that case, reload and retry once.
+	try:
+		quotation.submit()
+	except TimestampMismatchError:
+		frappe.clear_last_message()
+		quotation = frappe.get_doc("Quotation", quotation.name)
+		quotation.flags.ignore_permissions = True
+		apply_cart_settings(quotation=quotation)
+		quotation.company = cart_settings.company
+		quotation.submit()
 
 	if quotation.quotation_to == "Lead" and quotation.party_name:
 		frappe.defaults.set_user_default("company", quotation.company)
@@ -108,6 +129,40 @@ def place_order():
 	if not (quotation.shipping_address_name or quotation.customer_address):
 		frappe.throw(_("Set Shipping Address or Billing Address"))
 
+	# Aynı sepet (Quotation) için birden fazla satış siparişi oluşmaması için
+	# Quotation'u lock'layıp, mevcut Sales Order kontrolü yapıyoruz.
+	# Bu sayede paralel çağrılar birbirini engeller.
+	quotation_name = quotation.name
+	
+	# Quotation'u for_update ile yükle (database lock için)
+	# Bu sayede aynı anda birden fazla process aynı Quotation'u işleyemez
+	quotation_locked = frappe.get_doc("Quotation", quotation_name, for_update=True)
+	
+	# Mevcut Sales Order'ı kontrol et (hem draft hem submitted)
+	existing_so_name = frappe.db.get_value(
+		"Sales Order Item",
+		{"prevdoc_docname": quotation_name},
+		"parent",
+		as_dict=False
+	)
+	
+	# Eğer Sales Order varsa ve submitted ise, onu kullan
+	if existing_so_name:
+		so_docstatus = frappe.db.get_value("Sales Order", existing_so_name, "docstatus")
+		if so_docstatus == 1:  # Submitted
+			sales_order = frappe.get_doc("Sales Order", existing_so_name)
+			# Mevcut siparişi döndür
+			if hasattr(frappe.local, "cookie_manager"):
+				frappe.local.cookie_manager.delete_cookie("cart_count")
+			return {
+				"sales_order": sales_order.name,
+				"redirect_to_payment": False,
+				"already_exists": True
+			}
+		elif so_docstatus == 0:  # Draft - sil ve yeniden oluştur
+			frappe.delete_doc("Sales Order", existing_so_name, ignore_permissions=True, force=True)
+	
+	# Yeni Sales Order oluştur
 	sales_order = frappe.get_doc(
 		_make_sales_order(
 			quotation.name, ignore_permissions=True
@@ -137,12 +192,101 @@ def place_order():
 
 	sales_order.flags.ignore_permissions = True
 	sales_order.insert()
-	sales_order.submit()
+	
+	# Insert sonrası tekrar kontrol et (başka bir process aynı anda insert etmiş olabilir)
+	# Bu durumda yeni oluşturduğumuzu sil ve mevcut olanı kullan
+	duplicate_check = frappe.db.get_all(
+		"Sales Order Item",
+		filters={
+			"prevdoc_docname": quotation_name,
+			"parent": ["!=", sales_order.name],
+			"docstatus": 1
+		},
+		fields=["parent"],
+		distinct=True,
+		limit=1
+	)
+	
+	if duplicate_check:
+		# Başka bir process daha önce Sales Order oluşturmuş, bizimkini sil
+		frappe.delete_doc("Sales Order", sales_order.name, ignore_permissions=True, force=True)
+		existing_so_name = duplicate_check[0].parent
+		sales_order = frappe.get_doc("Sales Order", existing_so_name)
+	else:
+		# Normal akış: submit et
+		sales_order.submit()
 
 	if hasattr(frappe.local, "cookie_manager"):
 		frappe.local.cookie_manager.delete_cookie("cart_count")
 
-	return sales_order.name
+	# Eğer ödeme gateway'i yapılandırılmışsa, direkt ödeme ekranına yönlendir
+	if cart_settings.enable_checkout and cart_settings.payment_gateway_account:
+		try:
+			from erpnext.accounts.doctype.payment_request.payment_request import make_payment_request
+			
+			# Response'u geçici olarak kaydet ve temizle
+			original_response = getattr(frappe.local, "response", None)
+			frappe.local.response = frappe._dict()
+			
+			# make_payment_request'i çağır (Shopping Cart için redirect yapar)
+			make_payment_request(
+				dt="Sales Order",
+				dn=sales_order.name,
+				submit_doc=1,
+				order_type="Shopping Cart"
+			)
+			
+			# Redirect URL'sini al
+			if hasattr(frappe.local, "response") and frappe.local.response.get("type") == "redirect":
+				payment_url = frappe.local.response.get("location")
+				if payment_url:
+					# Response'u JSON'a çevir
+					frappe.local.response = frappe._dict({"type": "json"})
+					frappe.logger().info(f"Place order: Redirecting to payment URL: {payment_url}")
+					return {
+						"sales_order": sales_order.name,
+						"payment_url": payment_url,
+						"redirect_to_payment": True
+					}
+			
+			# Redirect yapılmadıysa veya URL yoksa, PaymentRequest'i bul ve URL'yi al
+			payment_requests = frappe.get_all(
+				"Payment Request",
+				filters={
+					"reference_doctype": "Sales Order",
+					"reference_name": sales_order.name,
+					"docstatus": 1
+				},
+				order_by="creation desc",
+				limit=1
+			)
+			if payment_requests:
+				pr = frappe.get_doc("Payment Request", payment_requests[0].name)
+				payment_url = pr.get_payment_url()
+				frappe.local.response = frappe._dict({"type": "json"})
+				frappe.logger().info(f"Place order: Found payment request, redirecting to: {payment_url}")
+				return {
+					"sales_order": sales_order.name,
+					"payment_url": payment_url,
+					"redirect_to_payment": True
+				}
+			else:
+				frappe.logger().warning(f"Place order: Payment request not found for Sales Order {sales_order.name}")
+		except Exception as e:
+			# Ödeme request oluşturulamazsa (örn. zaten ödendi, gateway yok), normal akışa devam et
+			frappe.log_error(
+				f"Payment request creation failed in place_order for Sales Order {sales_order.name}: {str(e)}", 
+				"Place Order Payment Error"
+			)
+			# Response'u temizle
+			if hasattr(frappe.local, "response"):
+				frappe.local.response = frappe._dict({"type": "json"})
+
+	# Ödeme gateway yoksa veya hata oluştuysa, sipariş sayfasına yönlendir
+	return {
+		"sales_order": sales_order.name,
+		"redirect_to_payment": False
+	}
 
 
 @frappe.whitelist()
