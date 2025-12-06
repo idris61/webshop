@@ -134,6 +134,17 @@ frappe.ready(() => {
 					label: '{{ _("Phone") }}',
 					reqd: 1
 				},
+				{
+					fieldname: "email_id",
+					fieldtype: "Data",
+					label: '{{ _("Email Address") }}',
+					options: "Email"
+				},
+				{
+					fieldname: "fax",
+					fieldtype: "Data",
+					label: '{{ _("Fax") }}'
+				},
 			],
 			primary_action_label: '{{ _("Save") }}',
 			primary_action: (values) => {

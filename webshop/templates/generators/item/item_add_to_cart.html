@@ -10,7 +10,7 @@
 			{% set price_info = product_info.price %}
 
 			<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
-				<!-- Final Price -->
+				<!-- Final Price (seçili satış birimi için) -->
 				{% if price_info.formatted_mrp %}
 					<span itemprop="lowPrice" content="{{ price_info.formatted_price_sales_uom }}">{{ price_info.formatted_price_sales_uom }}</span>
 				{% else %}
@@ -27,14 +27,48 @@
 					</small>
 				{% endif %}
 
-				<!-- Price per UOM -->
+				<!-- Price per base UOM -->
 				<small class="formatted-price ml-2">
 					({{ price_info.formatted_price }} / {{ product_info.uom }})
 				</small>
 			</div>
-		{% else %}
-			{{ _("UOM") }} : {{ product_info.uom }}
 		{% endif %}
+
+		<!-- Çoklu Satış Birimi (UOM) Seçimi - Her zaman göster -->
+		{% if product_info.uom_options and product_info.uom_options|length > 0 %}
+		<div class="mb-4 nm-uom-wrapper" style="margin-top: 0;">
+			<label class="font-weight-bold mb-2" style="font-size: 14px; color: #2c3e50; display: block; margin-bottom: 8px;">{{ _("Satış Birimi") }}:</label>
+			<select
+				class="form-control nm-uom-select"
+				data-item-code="{{ item_code }}"
+				style="max-width: 300px; padding: 10px 15px !important; border: 1px solid #dee2e6; border-radius: 6px; font-size: 14px !important; display: block !important; visibility: visible !important; opacity: 1 !important; height: 40px !important; min-height: 40px !important; line-height: 20px !important; box-sizing: border-box !important;"
+			>
+				{% set has_selected = False %}
+				{% set default_index = 0 %}
+				{% for opt in product_info.uom_options %}
+					{% if opt.is_default == 1 or opt.is_default == True %}
+						{% set has_selected = True %}
+						{% set default_index = loop.index0 %}
+					{% endif %}
+				{% endfor %}
+				{% if not has_selected and product_info.uom_options|length > 0 %}
+					{% set default_index = 0 %}
+				{% endif %}
+				{% for opt in product_info.uom_options %}
+				<option value="{{ opt.uom }}" data-price="{{ opt.formatted_price or '' }}"{% if loop.index0 == default_index %} selected="selected"{% endif %}>{{ opt.uom }}{% if opt.formatted_price %} – {{ opt.formatted_price }}{% endif %}</option>
+				{% endfor %}
+			</select>
+		</div>
+		{% elif product_info.sales_uom or product_info.uom %}
+		<!-- UOM seçenekleri yoksa, sadece mevcut UOM'i göster -->
+		<div class="mt-3 mb-3">
+			<label class="font-weight-bold mb-2" style="font-size: 14px; color: #2c3e50; display: block;">{{ _("Satış Birimi") }}:</label>
+			<div class="form-control" style="max-width: 300px; padding: 10px 15px; border: 1px solid #dee2e6; border-radius: 6px; font-size: 14px; background-color: #f8f9fa; color: #495057;">
+				{{ product_info.sales_uom or product_info.uom }}
+			</div>
+		</div>
+		{% endif %}
+
 
 		{% if cart_settings.show_stock_availability %}
 		<div class="mt-2">
@@ -94,20 +128,20 @@
 		<!-- Add to Cart / View in Cart, Contact Us -->
 		<div class="mt-6 mb-5">
 			<!-- Quantity Spinner -->
-			{% if product_info.price and (cart_settings.allow_items_not_in_stock or product_info.get("in_stock")) %}
-				<div class="mb-3">
-					<label class="font-weight-bold">{{ _("Quantity") }}:</label>
-					<div class="input-group number-spinner" id="item-detail-spinner" style="max-width: 150px;">
+			{% if product_info.price and (cart_settings.allow_items_not_in_stock or product_info.get("in_stock")) or product_info.uom_options %}
+				<div class="mb-4" style="margin-top: 0;">
+					<label class="font-weight-bold mb-2" style="font-size: 14px; color: #2c3e50; display: block; margin-bottom: 8px;">{{ _("Miktar") }}:</label>
+					<div class="input-group number-spinner" id="item-detail-spinner" style="max-width: 180px;">
 						<span class="input-group-prepend">
-							<button class="btn btn-outline-secondary" data-dir="dwn" type="button">
+							<button class="btn btn-outline-secondary" data-dir="dwn" type="button" style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; border: 1px solid #dee2e6; border-radius: 6px 0 0 6px;">
 								−
 							</button>
 						</span>
 						<input class="form-control text-center cart-qty" type="text" 
 							value="{{ (product_info.qty or 1)|int }}" data-item-code="{{ item_code }}" 
-							inputmode="numeric" pattern="[0-9]*" style="max-width: 70px;">
+							inputmode="numeric" pattern="[0-9]*" style="height: 40px; text-align: center; font-size: 16px; font-weight: 600; border: 1px solid #dee2e6; border-left: none; border-right: none;">
 						<span class="input-group-append">
-							<button class="btn btn-outline-secondary" data-dir="up" type="button">
+							<button class="btn btn-outline-secondary" data-dir="up" type="button" style="width: 40px; height: 40px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: bold; border: 1px solid #dee2e6; border-radius: 0 6px 6px 0;">
 								+
 							</button>
 						</span>
@@ -117,7 +151,7 @@
 			
 			<div class="mb-4 d-flex">
 				<!-- Add to Cart / View in Cart -->
-				{% if product_info.price and (cart_settings.allow_items_not_in_stock or product_info.get("in_stock")) %}
+				{% if product_info.price and (cart_settings.allow_items_not_in_stock or product_info.get("in_stock")) or product_info.uom_options %}
 					<button class="btn btn-primary btn-view-in-cart {{ '' if product_info.qty else 'hidden' }} mr-2 font-md"
 						data-item-code="{{item_code}}">
 						{{  _("View in Cart") if cart_settings.enable_checkout else _("View in Quote") }}
@@ -145,7 +179,61 @@
 </div>
 
 <script>
-	frappe.ready(() => {
+	frappe.ready(function() {
+		// jQuery'nin yüklendiğinden emin ol
+		if (typeof jQuery === 'undefined') {
+			console.error('jQuery is not loaded');
+			return;
+		}
+		
+		// jQuery'yi local scope'a al
+		const $ = jQuery;
+			
+		// UOM alanını başlat ve görünür yap
+		function initUOMSelector() {
+			// .item-cart container'ını zorla göster
+			$('.item-cart').removeClass('hide hidden').show();
+			
+			// UOM wrapper ve select elementlerini göster
+			$('.nm-uom-wrapper, .nm-uom-select').closest('.mt-3.mb-3, .nm-uom-wrapper').removeClass('hide hidden').show();
+			
+			// UOM select elementlerini başlat
+			$('.nm-uom-select').each(function() {
+				const $select = $(this);
+				const currentVal = $select.val();
+				const selectedIndex = $select[0].selectedIndex;
+				
+				// CSS ayarları
+				$select.css({
+					'display': 'block',
+					'visibility': 'visible',
+					'opacity': '1',
+					'height': '40px',
+					'min-height': '40px',
+					'line-height': '20px',
+					'padding': '10px 15px',
+					'font-size': '14px',
+					'box-sizing': 'border-box'
+				});
+				
+				// Seçili değeri kontrol et ve gerekirse ilk seçeneği seç
+				if (!currentVal || currentVal === '' || currentVal === null || selectedIndex < 0) {
+					const $firstOption = $select.find('option').first();
+					if ($firstOption.length) {
+						$select.val($firstOption.val());
+						$select[0].selectedIndex = 0;
+					}
+				} else {
+					// Seçili değeri force et
+					$select[0].selectedIndex = selectedIndex;
+					$select.val(currentVal);
+				}
+			});
+		}
+		
+		// Sayfa yüklendiğinde başlat
+		initUOMSelector();
+		
 		// Buton görünürlüğünü yöneten fonksiyon
 		function toggleCartButtons(inCart) {
 			if (inCart) {
@@ -161,6 +249,21 @@
 		const initialQty = parseInt($('#item-detail-spinner .cart-qty').val()) || 0;
 		if (initialQty > 0) {
 			toggleCartButtons(true);
+		} else {
+			// Sepette yoksa, sepete ekle butonunun görünür olduğundan emin ol
+			toggleCartButtons(false);
+		}
+		
+		// UOM seçici varsa, butonların görünür olduğundan emin ol
+		if ($('.nm-uom-select').length > 0) {
+			const itemCode = $('.nm-uom-select').first().data('item-code');
+			const $addToCartBtn = $('.btn-add-to-cart[data-item-code="' + itemCode + '"]');
+			const $viewInCartBtn = $('.btn-view-in-cart[data-item-code="' + itemCode + '"]');
+			
+			// Eğer sepette yoksa, add-to-cart butonunu göster
+			if (!$viewInCartBtn.length || $viewInCartBtn.hasClass('hidden') || $viewInCartBtn.is(':hidden')) {
+				$addToCartBtn.removeClass('hidden').show();
+			}
 		}
 
 		// Sayfa yüklendiğinde de integer'a çevir
@@ -197,11 +300,27 @@
 			input.val(val); // Integer olarak set et (virgül yok!)
 		});
 
+		// UOM seçildiğinde sepete ekle butonunun görünür olduğundan emin ol
+		$(document).on('change', '.nm-uom-select', function() {
+			const itemCode = $(this).data('item-code');
+			const $addToCartBtn = $('.btn-add-to-cart[data-item-code="' + itemCode + '"]');
+			const $viewInCartBtn = $('.btn-view-in-cart[data-item-code="' + itemCode + '"]');
+			
+			// Eğer sepette yoksa, add-to-cart butonunu göster
+			if (!$viewInCartBtn.length || $viewInCartBtn.hasClass('hidden') || $viewInCartBtn.is(':hidden')) {
+				$addToCartBtn.removeClass('hidden').show();
+			}
+			
+			// .item-cart container'ının görünür olduğundan emin ol
+			$('.item-cart').removeClass('hide hidden');
+		});
+
 		$('.page_content').on('click', '.btn-add-to-cart', (e) => {
 			// Bind action on add to cart button
 			const $btn = $(e.currentTarget);
 			$btn.prop('disabled', true);
 			const item_code = $btn.data('item-code');
+			const uom = window.nm_get_selected_uom ? window.nm_get_selected_uom(item_code) : null;
 			
 			// Input'tan miktar değerini al
 			const qty = parseInt($('#item-detail-spinner .cart-qty').val()) || 1;
@@ -209,6 +328,7 @@
 			webshop.webshop.shopping_cart.update_cart({
 				item_code,
 				qty: qty,
+				uom: uom,
 				callback(r) {
 					$btn.prop('disabled', false);
 					if (!r.exc) {
@@ -225,6 +345,7 @@
 			const $btn = $(e.currentTarget);
 			$btn.prop('disabled', true);
 			const item_code = $btn.data('item-code');
+			const uom = window.nm_get_selected_uom ? window.nm_get_selected_uom(item_code) : null;
 			
 			// Input'tan güncel miktarı al
 			const qty = parseInt($('#item-detail-spinner .cart-qty').val()) || 1;
@@ -233,6 +354,7 @@
 			webshop.webshop.shopping_cart.update_cart({
 				item_code,
 				qty: qty,
+				uom: uom,
 				callback(r) {
 					$btn.prop('disabled', false);
 					if (!r.exc) {
@@ -272,11 +394,9 @@
 					d.show();
 					$btn.prop('disabled', false);
 				}
-			})
-
+			});
 		});
 	});
-
 
 </script>
 

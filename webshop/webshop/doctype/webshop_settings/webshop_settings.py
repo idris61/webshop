@@ -43,6 +43,8 @@ class WebshopSettings(Document):
 
 	def after_save(self):
 		self.create_redisearch_indexes()
+		# Price list değiştiyse product filter cache'ini temizle
+		self.clear_product_cache_if_price_list_changed()
 
 	def create_redisearch_indexes(self):
 		# if redisearch is enabled (value changed) create indexes and dictionary
@@ -50,6 +52,15 @@ class WebshopSettings(Document):
 		if self.is_redisearch_loaded and self.is_redisearch_enabled and value_changed:
 			define_autocomplete_dictionary()
 			create_website_items_index()
+
+	def clear_product_cache_if_price_list_changed(self):
+		"""Price list değiştiyse product filter cache'ini temizle"""
+		old_doc = self.get_doc_before_save()
+		if old_doc and old_doc.price_list != self.price_list:
+			# Tüm product_filter cache'lerini temizle
+			keys = frappe.cache().get_keys("product_filter:*")
+			if keys:
+				frappe.cache().delete_value(keys, make_keys=False)
 
 	@staticmethod
 	def validate_field_filters(filter_fields, enable_field_filters):

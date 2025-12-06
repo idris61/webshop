@@ -29,9 +29,6 @@
 					{% endif %}
 				{% endfor %}
 			</table>
-
-			<!-- TODO: Apply Coupon Dialog-->
-			<!-- {% set show_coupon_code = cart_settings.show_apply_coupon_code_in_website and cart_settings.enable_checkout %}
 			{% if show_coupon_code %}
 				<button class="btn btn-coupon-code w-100 text-left">
 					<svg width="24" height="24" viewBox="0 0 24 24" stroke="var(--gray-600)" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -53,22 +50,3 @@
 		{% endif %}
 	</div>
 </div>
-
-<!-- TODO: Apply Coupon Dialog-->
-<!-- <script>
-	frappe.ready(() => {
-		$('.btn-coupon-code').click((e) => {
-			const $btn = $(e.currentTarget);
-			const d = new frappe.ui.Dialog({
-				title: __('Coupons'),
-				fields: [
-					{
-						fieldname: 'coupons_area',
-						fieldtype: 'HTML'
-					}
-				]
-			});
-			d.show();
-		});
-	});
-</script> -->

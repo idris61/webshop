@@ -4,6 +4,7 @@
 import frappe
 import frappe.defaults
 from frappe import _, throw
+from frappe.exceptions import TimestampMismatchError
 from frappe.contacts.doctype.address.address import get_address_display
 from frappe.contacts.doctype.contact.contact import get_contact_name
 from frappe.utils import cint, cstr, flt, get_fullname
@@ -25,7 +26,14 @@ def set_cart_count(quotation=None):
 	if cint(frappe.db.get_singles_value("Webshop Settings", "enabled")):
 		if not quotation:
 			quotation = _get_cart_quotation()
-		cart_count = cstr(cint(quotation.get("total_qty")))
+		
+		# total_qty'yi items üzerinden doğrudan hesapla
+		if quotation and quotation.get("items"):
+			cart_count = sum(flt(item.qty) for item in quotation.items if not item.get("is_alternative", 0))
+		else:
+			cart_count = quotation.get("total_qty") if quotation else 0
+		
+		cart_count = cstr(cint(cart_count))
 
 		if hasattr(frappe.local, "cookie_manager"):
 			frappe.local.cookie_manager.set_cookie("cart_count", cart_count)
@@ -90,18 +98,71 @@ def get_billing_addresses(party=None):
 def place_order():
 	quotation = _get_cart_quotation()
 	cart_settings = frappe.get_cached_doc("Webshop Settings")
-	quotation.company = cart_settings.company
 
+	# Ensure quotation has correct totals and taxes before submission so that
+	# downstream validations (like payment schedule creation) have a valid grand_total.
+	apply_cart_settings(quotation=quotation)
+
+	quotation.company = cart_settings.company
 	quotation.flags.ignore_permissions = True
-	quotation.submit()
+	# In webshop checkout the quotation can be updated very frequently (stock,
+	# pricing, etc.). To avoid blocking the flow with timestamp mismatch errors,
+	# allow this submission to bypass the optimistic locking check while still
+	# enforcing valid docstatus transitions.
+	quotation.flags.ignore_timestamp_mismatch = True
+
+	# Rarely, quotation may be updated between page load and order placement,
+	# causing a TimestampMismatchError. In that case, reload and retry once.
+	try:
+		quotation.submit()
+	except TimestampMismatchError:
+		frappe.clear_last_message()
+		quotation = frappe.get_doc("Quotation", quotation.name)
+		quotation.flags.ignore_permissions = True
+		apply_cart_settings(quotation=quotation)
+		quotation.company = cart_settings.company
+		quotation.submit()
 
 	if quotation.quotation_to == "Lead" and quotation.party_name:
-		# company used to create customer accounts
 		frappe.defaults.set_user_default("company", quotation.company)
 
 	if not (quotation.shipping_address_name or quotation.customer_address):
 		frappe.throw(_("Set Shipping Address or Billing Address"))
 
+	# Aynı sepet (Quotation) için birden fazla satış siparişi oluşmaması için
+	# Quotation'u lock'layıp, mevcut Sales Order kontrolü yapıyoruz.
+	# Bu sayede paralel çağrılar birbirini engeller.
+	quotation_name = quotation.name
+	
+	# Quotation'u for_update ile yükle (database lock için)
+	# Bu sayede aynı anda birden fazla process aynı Quotation'u işleyemez
+	quotation_locked = frappe.get_doc("Quotation", quotation_name, for_update=True)
+	
+	# Mevcut Sales Order'ı kontrol et (hem draft hem submitted)
+	existing_so_name = frappe.db.get_value(
+		"Sales Order Item",
+		{"prevdoc_docname": quotation_name},
+		"parent",
+		as_dict=False
+	)
+	
+	# Eğer Sales Order varsa ve submitted ise, onu kullan
+	if existing_so_name:
+		so_docstatus = frappe.db.get_value("Sales Order", existing_so_name, "docstatus")
+		if so_docstatus == 1:  # Submitted
+			sales_order = frappe.get_doc("Sales Order", existing_so_name)
+			# Mevcut siparişi döndür
+			if hasattr(frappe.local, "cookie_manager"):
+				frappe.local.cookie_manager.delete_cookie("cart_count")
+			return {
+				"sales_order": sales_order.name,
+				"redirect_to_payment": False,
+				"already_exists": True
+			}
+		elif so_docstatus == 0:  # Draft - sil ve yeniden oluştur
+			frappe.delete_doc("Sales Order", existing_so_name, ignore_permissions=True, force=True)
+	
+	# Yeni Sales Order oluştur
 	sales_order = frappe.get_doc(
 		_make_sales_order(
 			quotation.name, ignore_permissions=True
@@ -131,12 +192,101 @@ def place_order():
 
 	sales_order.flags.ignore_permissions = True
 	sales_order.insert()
-	sales_order.submit()
+	
+	# Insert sonrası tekrar kontrol et (başka bir process aynı anda insert etmiş olabilir)
+	# Bu durumda yeni oluşturduğumuzu sil ve mevcut olanı kullan
+	duplicate_check = frappe.db.get_all(
+		"Sales Order Item",
+		filters={
+			"prevdoc_docname": quotation_name,
+			"parent": ["!=", sales_order.name],
+			"docstatus": 1
+		},
+		fields=["parent"],
+		distinct=True,
+		limit=1
+	)
+	
+	if duplicate_check:
+		# Başka bir process daha önce Sales Order oluşturmuş, bizimkini sil
+		frappe.delete_doc("Sales Order", sales_order.name, ignore_permissions=True, force=True)
+		existing_so_name = duplicate_check[0].parent
+		sales_order = frappe.get_doc("Sales Order", existing_so_name)
+	else:
+		# Normal akış: submit et
+		sales_order.submit()
 
 	if hasattr(frappe.local, "cookie_manager"):
 		frappe.local.cookie_manager.delete_cookie("cart_count")
 
-	return sales_order.name
+	# Eğer ödeme gateway'i yapılandırılmışsa, direkt ödeme ekranına yönlendir
+	if cart_settings.enable_checkout and cart_settings.payment_gateway_account:
+		try:
+			from erpnext.accounts.doctype.payment_request.payment_request import make_payment_request
+			
+			# Response'u geçici olarak kaydet ve temizle
+			original_response = getattr(frappe.local, "response", None)
+			frappe.local.response = frappe._dict()
+			
+			# make_payment_request'i çağır (Shopping Cart için redirect yapar)
+			make_payment_request(
+				dt="Sales Order",
+				dn=sales_order.name,
+				submit_doc=1,
+				order_type="Shopping Cart"
+			)
+			
+			# Redirect URL'sini al
+			if hasattr(frappe.local, "response") and frappe.local.response.get("type") == "redirect":
+				payment_url = frappe.local.response.get("location")
+				if payment_url:
+					# Response'u JSON'a çevir
+					frappe.local.response = frappe._dict({"type": "json"})
+					frappe.logger().info(f"Place order: Redirecting to payment URL: {payment_url}")
+					return {
+						"sales_order": sales_order.name,
+						"payment_url": payment_url,
+						"redirect_to_payment": True
+					}
+			
+			# Redirect yapılmadıysa veya URL yoksa, PaymentRequest'i bul ve URL'yi al
+			payment_requests = frappe.get_all(
+				"Payment Request",
+				filters={
+					"reference_doctype": "Sales Order",
+					"reference_name": sales_order.name,
+					"docstatus": 1
+				},
+				order_by="creation desc",
+				limit=1
+			)
+			if payment_requests:
+				pr = frappe.get_doc("Payment Request", payment_requests[0].name)
+				payment_url = pr.get_payment_url()
+				frappe.local.response = frappe._dict({"type": "json"})
+				frappe.logger().info(f"Place order: Found payment request, redirecting to: {payment_url}")
+				return {
+					"sales_order": sales_order.name,
+					"payment_url": payment_url,
+					"redirect_to_payment": True
+				}
+			else:
+				frappe.logger().warning(f"Place order: Payment request not found for Sales Order {sales_order.name}")
+		except Exception as e:
+			# Ödeme request oluşturulamazsa (örn. zaten ödendi, gateway yok), normal akışa devam et
+			frappe.log_error(
+				f"Payment request creation failed in place_order for Sales Order {sales_order.name}: {str(e)}", 
+				"Place Order Payment Error"
+			)
+			# Response'u temizle
+			if hasattr(frappe.local, "response"):
+				frappe.local.response = frappe._dict({"type": "json"})
+
+	# Ödeme gateway yoksa veya hata oluştuysa, sipariş sayfasına yönlendir
+	return {
+		"sales_order": sales_order.name,
+		"redirect_to_payment": False
+	}
 
 
 @frappe.whitelist()
@@ -153,7 +303,7 @@ def request_for_quotation():
 
 
 @frappe.whitelist()
-def update_cart(item_code, qty, additional_notes=None, with_items=False):
+def update_cart(item_code, qty, additional_notes=None, with_items=False, uom=None):
 	quotation = _get_cart_quotation()
 
 	empty_card = False
@@ -170,6 +320,24 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			"Website Item", {"item_code": item_code}, "website_warehouse"
 		)
 
+		default_stock_uom, default_sales_uom = frappe.db.get_value(
+			"Item", item_code, ["stock_uom", "sales_uom"]
+		) or (None, None)
+
+		if not uom:
+			uom = default_sales_uom or default_stock_uom
+
+		conversion_factor = 1
+		if uom and default_stock_uom and uom != default_stock_uom:
+			conversion_factor = (
+				frappe.db.get_value(
+					"UOM Conversion Detail",
+					{"parent": item_code, "uom": uom},
+					"conversion_factor",
+				)
+				or 1
+			)
+
 		quotation_items = quotation.get("items", {"item_code": item_code})
 		if not quotation_items:
 			quotation.append(
@@ -178,6 +346,8 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 					"doctype": "Quotation Item",
 					"item_code": item_code,
 					"qty": qty,
+					"uom": uom,
+					"conversion_factor": conversion_factor,
 					"additional_notes": additional_notes,
 					"warehouse": warehouse,
 				},
@@ -186,6 +356,10 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			quotation_items[0].qty = qty
 			quotation_items[0].warehouse = warehouse
 			quotation_items[0].additional_notes = additional_notes
+			if uom:
+				quotation_items[0].uom = uom
+			if conversion_factor:
+				quotation_items[0].conversion_factor = conversion_factor
 
 	apply_cart_settings(quotation=quotation)
 
@@ -193,13 +367,16 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 	quotation.payment_schedule = []
 	if not empty_card:
 		quotation.save()
+		# Save sonrası total_qty'nin güncellenmesi için reload et
+		frappe.db.commit()
+		quotation.reload()
 	else:
 		quotation.delete()
 		quotation = None
 
 	set_cart_count(quotation)
 
-	if cint(with_items):
+	if cint(with_items) and quotation:
 		context = get_cart_quotation(quotation)
 		return {
 			"items": frappe.render_template(
@@ -213,7 +390,7 @@ def update_cart(item_code, qty, additional_notes=None, with_items=False):
 			),
 		}
 	else:
-		return {"name": quotation.name}
+		return {"name": quotation.name if quotation else None}
 
 
 @frappe.whitelist()
@@ -335,7 +512,6 @@ def decorate_quotation_doc(doc):
 		item_code = d.item_code
 		fields = ["web_item_name", "thumbnail", "website_image", "description", "route"]
 
-		# Variant Item
 		if not frappe.db.exists("Website Item", {"item_code": item_code}):
 			variant_data = frappe.db.get_values(
 				"Item",
@@ -347,7 +523,7 @@ def decorate_quotation_doc(doc):
 			fields = fields[1:]
 			d.web_item_name = variant_data.item_name
 
-			if variant_data.image:  # get image from variant or template web item
+			if variant_data.image:
 				d.thumbnail = variant_data.image
 				fields = fields[2:]
 
@@ -357,7 +533,6 @@ def decorate_quotation_doc(doc):
 			)
 		)
 
-		# Eğer thumbnail yoksa, Item'dan image al
 		if not d.get("thumbnail"):
 			item_image = frappe.db.get_value("Item", d.item_code, "image")
 			if item_image:
@@ -377,7 +552,6 @@ def _get_cart_quotation(party=None):
 	if not party:
 		party = get_party()
 
-	# Get actual email from User table instead of session.user (which might be "Administrator")
 	user_email = frappe.db.get_value("User", frappe.session.user, "email") or frappe.session.user
 
 	quotation = frappe.get_all(
@@ -470,41 +644,33 @@ def apply_cart_settings(party=None, quotation=None):
 
 
 def set_price_list_and_rate(quotation, cart_settings):
-	"""set price list based on billing territory"""
-
 	_set_price_list(cart_settings, quotation)
 
-	# reset values
 	quotation.price_list_currency = (
 		quotation.currency
 	) = quotation.plc_conversion_rate = quotation.conversion_rate = None
 	for item in quotation.get("items"):
 		item.price_list_rate = item.discount_percentage = item.rate = item.amount = None
 
-	# refetch values
 	quotation.run_method("set_price_list_and_item_details")
 
 	if hasattr(frappe.local, "cookie_manager"):
-		# set it in cookies for using in product page
 		frappe.local.cookie_manager.set_cookie(
 			"selling_price_list", quotation.selling_price_list
 		)
 
 
 def _set_price_list(cart_settings, quotation=None):
-	"""Set price list based on customer or shopping cart default"""
 	from erpnext.accounts.party import get_default_price_list
 
 	party_name = quotation.get("party_name") if quotation else get_party().get("name")
 	selling_price_list = None
 
-	# check if default customer price list exists
 	if party_name and frappe.db.exists("Customer", party_name):
 		selling_price_list = get_default_price_list(
 			frappe.get_doc("Customer", party_name)
 		)
 
-	# check default price list in shopping cart
 	if not selling_price_list:
 		selling_price_list = cart_settings.price_list
 
@@ -515,7 +681,6 @@ def _set_price_list(cart_settings, quotation=None):
 
 
 def set_taxes(quotation, cart_settings):
-	"""set taxes based on billing territory"""
 	from erpnext.accounts.party import set_taxes
 
 	customer_group = frappe.db.get_value(
@@ -534,11 +699,8 @@ def set_taxes(quotation, cart_settings):
 		shipping_address=quotation.shipping_address_name,
 		use_for_shopping_cart=1,
 	)
-	#
-	# 	# clear table
+
 	quotation.set("taxes", [])
-	#
-	# 	# append taxes
 	quotation.append_taxes_from_master()
 	quotation.append_taxes_from_item_tax_template()
 
@@ -725,8 +887,6 @@ def get_applicable_shipping_rules(party=None, quotation=None):
 	shipping_rules = get_shipping_rules(quotation)
 
 	if shipping_rules:
-		rule_label_map = frappe.db.get_values("Shipping Rule", shipping_rules, "label")
-		# we need this in sorted order as per the position of the rule in the settings page
 		return [[rule, rule] for rule in shipping_rules]
 
 
@@ -757,7 +917,6 @@ def get_shipping_rules(quotation=None, cart_settings=None):
 
 
 def get_address_territory(address_name):
-	"""Tries to match city, state and country of address to existing territory"""
 	territory = None
 
 	if address_name:
@@ -778,8 +937,6 @@ def show_terms(doc):
 
 @frappe.whitelist(allow_guest=True)
 def apply_coupon_code(applied_code, applied_referral_sales_partner):
-	quotation = True
-
 	if not applied_code:
 		frappe.throw(_("Please enter a coupon code"))
 
@@ -817,9 +974,6 @@ def remove_coupon_code():
 	quotation.coupon_code = ""
 	quotation.referral_sales_partner = ""
 	quotation.flags.ignore_permissions = True
-
-	# reset discount amount if coupon code is removed (on desk it is done in client side)
-	# as we are enabling ignore_pricing_rule, so we also need to manually reset discount percentage
 	quotation.discount_amount = 0
 	quotation.additional_discount_percentage = 0
 	quotation.ignore_pricing_rule = 1

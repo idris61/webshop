@@ -146,10 +146,6 @@ class TestProductDataEngine(unittest.TestCase):
 		self.assertEqual(items[0].get("item_code"), "Test 16I Laptop")
 		self.assertEqual(items[1].get("item_code"), "Test 15I Laptop")
 
-	# def test_product_list_with_field_filter_table_multiselect(self):
-	# 	TODO
-	# 	pass
-
 	def test_product_list_attribute_filter_builder(self):
 		"Test if attribute filters are fetched correctly."
 		create_variant_web_item()

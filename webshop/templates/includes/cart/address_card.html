@@ -7,6 +7,19 @@
 		<div class="card-text mb-2">
 			{{ address.display }}
 		</div>
+		{% if address.phone or address.email_id or address.fax %}
+		<div class="card-text mb-2" style="font-size: 13px; color: var(--gray-600);">
+			{% if address.phone %}
+				<div><strong>{{ _('Phone') }}:</strong> {{ address.phone }}</div>
+			{% endif %}
+			{% if address.email_id %}
+				<div><strong>{{ _('Email') }}:</strong> {{ address.email_id }}</div>
+			{% endif %}
+			{% if address.fax %}
+				<div><strong>{{ _('Fax') }}:</strong> {{ address.fax }}</div>
+			{% endif %}
+		</div>
+		{% endif %}
 		<a href="/address/{{address.name}}" class="card-link">
 			<svg class="icon icon-sm">
 				<use href="#icon-edit"></use>

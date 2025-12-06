@@ -1,0 +1,225 @@
+[
+ {
+  "doctype": "Custom Field",
+  "name": "Item-published_in_website",
+  "dt": "Item",
+  "fieldname": "published_in_website",
+  "fieldtype": "Check",
+  "label": "Published In Website",
+  "default": 0,
+  "depends_on": "published_in_website",
+  "ignore_user_permissions": 1,
+  "insert_after": "default_manufacturer_part_no",
+  "read_only": 1,
+  "no_copy": 1
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-custom_website_settings",
+  "dt": "Item Group",
+  "fieldname": "custom_website_settings",
+  "fieldtype": "Section Break",
+  "label": "Website Settings",
+  "insert_after": "taxes"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-show_in_website",
+  "dt": "Item Group",
+  "fieldname": "show_in_website",
+  "fieldtype": "Check",
+  "label": "Show in Website",
+  "default": "0",
+  "description": "Make Item Group visible in website",
+  "insert_after": "custom_website_settings"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-route",
+  "dt": "Item Group",
+  "fieldname": "route",
+  "fieldtype": "Data",
+  "label": "Route",
+  "depends_on": "show_in_website",
+  "insert_after": "show_in_website",
+  "no_copy": 1,
+  "unique": 1
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-website_title",
+  "dt": "Item Group",
+  "fieldname": "website_title",
+  "fieldtype": "Data",
+  "label": "Title",
+  "depends_on": "show_in_website",
+  "insert_after": "route"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-description",
+  "dt": "Item Group",
+  "fieldname": "description",
+  "fieldtype": "Text Editor",
+  "label": "Description",
+  "depends_on": "show_in_website",
+  "description": "HTML / Banner that will show on the top of product list.",
+  "insert_after": "website_title"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-include_descendants",
+  "dt": "Item Group",
+  "fieldname": "include_descendants",
+  "fieldtype": "Check",
+  "label": "Include Descendants",
+  "default": "0",
+  "depends_on": "show_in_website",
+  "description": "Include Website Items belonging to child Item Groups",
+  "insert_after": "website_title"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-column_break_16",
+  "dt": "Item Group",
+  "fieldname": "column_break_16",
+  "fieldtype": "Column Break",
+  "insert_after": "include_descendants"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-weightage",
+  "dt": "Item Group",
+  "fieldname": "weightage",
+  "fieldtype": "Int",
+  "label": "Weightage",
+  "depends_on": "show_in_website",
+  "insert_after": "column_break_16"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-slideshow",
+  "dt": "Item Group",
+  "fieldname": "slideshow",
+  "fieldtype": "Link",
+  "label": "Slideshow",
+  "options": "Website Slideshow",
+  "depends_on": "show_in_website",
+  "description": "Show this slideshow at the top of the page",
+  "insert_after": "weightage"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-website_specifications",
+  "dt": "Item Group",
+  "fieldname": "website_specifications",
+  "fieldtype": "Table",
+  "label": "Website Specifications",
+  "options": "Item Website Specification",
+  "depends_on": "show_in_website",
+  "insert_after": "description"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-website_filters_section",
+  "dt": "Item Group",
+  "fieldname": "website_filters_section",
+  "fieldtype": "Section Break",
+  "label": "Website Filters",
+  "collapsible": 1,
+  "depends_on": "show_in_website",
+  "insert_after": "website_specifications"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-filter_fields",
+  "dt": "Item Group",
+  "fieldname": "filter_fields",
+  "fieldtype": "Table",
+  "label": "Item Fields",
+  "options": "Website Filter Field",
+  "insert_after": "website_filters_section"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Item Group-filter_attributes",
+  "dt": "Item Group",
+  "fieldname": "filter_attributes",
+  "fieldtype": "Table",
+  "label": "Attributes",
+  "options": "Website Attribute",
+  "insert_after": "filter_fields"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Website Item-supplier_section",
+  "dt": "Website Item",
+  "fieldname": "supplier_section",
+  "fieldtype": "Section Break",
+  "label": "Tedarikçi Bilgileri",
+  "insert_after": "brand",
+  "collapsible": 1
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Website Item-supplier_items",
+  "dt": "Website Item",
+  "fieldname": "supplier_items",
+  "fieldtype": "Table",
+  "label": "Tedarikçiler",
+  "options": "Website Item Supplier",
+  "insert_after": "supplier_section"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Website Item-primary_supplier",
+  "dt": "Website Item",
+  "fieldname": "primary_supplier",
+  "fieldtype": "Link",
+  "label": "Ana Tedarikçi",
+  "options": "Supplier",
+  "insert_after": "supplier_items",
+  "read_only": 1,
+  "translatable": 0,
+  "description": "Filtreleme için kullanılır. İlk tedarikçi otomatik atanır."
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Homepage-products_section_break",
+  "dt": "Homepage",
+  "fieldname": "products_section_break",
+  "fieldtype": "Section Break",
+  "label": "Products",
+  "insert_after": "hero_section"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Homepage-products_url",
+  "dt": "Homepage",
+  "fieldname": "products_url",
+  "fieldtype": "Data",
+  "label": "URL for All Products",
+  "insert_after": "products_section_break"
+ },
+ {
+  "doctype": "Custom Field",
+  "name": "Homepage-products",
+  "dt": "Homepage",
+  "fieldname": "products",
+  "fieldtype": "Table",
+  "label": "Products",
+  "options": "Homepage Featured Product",
+  "insert_after": "products_url"
+ }
+]
+
+
+
+
+
+
+
+
+
+
+

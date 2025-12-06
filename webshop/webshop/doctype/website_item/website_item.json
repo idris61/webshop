@@ -34,6 +34,14 @@
   "section_break_17",
   "short_description",
   "web_long_description",
+  "multilingual_section",
+  "web_item_name_tr",
+  "web_item_name_en",
+  "web_item_name_de",
+  "column_break_multilingual",
+  "web_long_description_tr",
+  "web_long_description_en",
+  "web_long_description_de",
   "column_break_27",
   "website_specifications",
   "copy_from_item_group",
@@ -340,6 +348,60 @@
    "fieldname": "on_backorder",
    "fieldtype": "Check",
    "label": "On Backorder"
+  },
+  {
+   "fieldname": "multilingual_section",
+   "fieldtype": "Section Break",
+   "label": "Multilingual Content",
+   "collapsible": 1,
+   "insert_after": "web_long_description"
+  },
+  {
+   "fieldname": "web_item_name_tr",
+   "fieldtype": "Data",
+   "label": "Website Item Name (Turkish)",
+   "description": "Turkish translation of website item name",
+   "insert_after": "multilingual_section"
+  },
+  {
+   "fieldname": "web_item_name_en",
+   "fieldtype": "Data",
+   "label": "Website Item Name (English)",
+   "description": "English translation of website item name",
+   "insert_after": "web_item_name_tr"
+  },
+  {
+   "fieldname": "web_item_name_de",
+   "fieldtype": "Data",
+   "label": "Website Item Name (German)",
+   "description": "German translation of website item name",
+   "insert_after": "web_item_name_en"
+  },
+  {
+   "fieldname": "column_break_multilingual",
+   "fieldtype": "Column Break",
+   "insert_after": "web_item_name_de"
+  },
+  {
+   "fieldname": "web_long_description_tr",
+   "fieldtype": "Text Editor",
+   "label": "Website Description (Turkish)",
+   "description": "Turkish translation of website description",
+   "insert_after": "column_break_multilingual"
+  },
+  {
+   "fieldname": "web_long_description_en",
+   "fieldtype": "Text Editor",
+   "label": "Website Description (English)",
+   "description": "English translation of website description",
+   "insert_after": "web_long_description_tr"
+  },
+  {
+   "fieldname": "web_long_description_de",
+   "fieldtype": "Text Editor",
+   "label": "Website Description (German)",
+   "description": "German translation of website description",
+   "insert_after": "web_long_description_en"
   }
  ],
  "has_web_view": 1,
@@ -401,6 +463,14 @@
    "role": "Stock Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "read": 1,
+   "role": "Customer"
+  },
+  {
+   "read": 1,
+   "role": "Website User"
   }
  ],
  "search_fields": "web_item_name, item_code, item_group",

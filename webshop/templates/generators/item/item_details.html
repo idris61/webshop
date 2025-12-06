@@ -27,17 +27,159 @@
 	<div itemprop="review" itemscope itemtype="https://schema.org/Review">
 	</div>
 
-	<p class="product-code">
-		<span class="product-item-group">
+	<div class="product-code mb-2" style="padding: 8px 0;">
+		<span class="product-item-group" style="font-size: 13px; color: #6c757d; font-weight: 500;">
 			{{ _(doc.item_group) }}
 		</span>
-		<span class="product-item-code" itemprop="name">
+		<span style="margin: 0 8px; color: #dee2e6;">|</span>
+		<span class="product-item-code" itemprop="name" style="font-size: 13px; color: #6c757d;">
 			{{ _("Item Code") }}:
 		</span>
-		<span itemprop="name">{{ _(doc.item_code) }}</span>
+		<span itemprop="name" style="font-size: 13px; color: #495057; font-weight: 500;">{{ _(doc.item_code) }}</span>
+	</div>
+	
+	<!-- Brand/Marka -->
+	{% if doc.brand %}
+	<p class="product-manufacturer mb-2" style="font-size: 13px; color: #6c757d; padding: 4px 0;">
+		<span style="font-weight: 500;">{{ _("Brand") }}:</span> 
+		<span style="color: #495057; font-weight: 500;">{{ _(doc.brand) }}</span>
 	</p>
-	{% if has_variants %}
-		{% include "templates/generators/item/item_configure.html" %}
+	{% endif %}
+	
+	<!-- Product Categories ve Badges (Yan Yana) -->
+	{% if doc.product_categories or doc.product_badges %}
+	<div class="product-meta-info mt-2 mb-3 d-flex align-items-center flex-wrap" style="gap: 12px;">
+		<!-- Product Categories -->
+		{% if doc.product_categories %}
+		<div class="product-categories d-flex align-items-center flex-wrap" style="gap: 6px;">
+			<span class="text-muted small" style="font-size: 12px; margin-right: 4px;">
+				{{ _("Categories") }}:
+			</span>
+			{% for category_row in doc.product_categories %}
+			{% if category_row.product_category %}
+			<span class="badge badge-secondary" style="background-color: #e8f4f8; color: #2c3e50; padding: 4px 10px; font-size: 11px; font-weight: 500;">
+				{{ category_row.product_category }}
+			</span>
+			{% endif %}
+			{% endfor %}
+		</div>
+		{% endif %}
+		
+		<!-- Product Badges -->
+		{% if doc.product_badges %}
+		<div class="product-badges d-flex align-items-center flex-wrap" style="gap: 8px;">
+			<span class="text-muted small" style="font-size: 12px; margin-right: 4px;">
+				{{ _("Badges") }}:
+			</span>
+			{% for badge in doc.product_badges %}
+			{% if badge.badge_image %}
+			{% if badge.badge_link %}
+			<a href="{{ badge.badge_link }}" target="_blank" rel="noopener noreferrer">
+			{% endif %}
+			<img src="{{ badge.badge_image }}" alt="{{ badge.badge_alt_text or badge.badge_name or '' }}" class="product-badge-img" style="max-height: 40px; max-width: 100px; object-fit: contain;" loading="lazy">
+			{% if badge.badge_link %}
+			</a>
+			{% endif %}
+			{% endif %}
+			{% endfor %}
+		</div>
+		{% endif %}
+	</div>
+	{% endif %}
+	
+	<!-- Fiyat Aralığı (Varyantlı Ürünler İçin) -->
+	{% if has_variants and price_range and price_range.has_range %}
+	<div class="product-price-range mb-4" style="padding: 12px 0; border-bottom: 1px solid #e9ecef;">
+		<div class="product-price" itemprop="offers" itemscope itemtype="https://schema.org/AggregateOffer">
+			<span class="font-weight-bold" style="font-size: 1.4em; color: #2c3e50; line-height: 1.3;">
+				{{ price_range.min_formatted }}
+				{% if price_range.min != price_range.max %}
+					– {{ price_range.max_formatted }}
+				{% endif %}
+			</span>
+			<meta itemprop="lowPrice" content="{{ price_range.min }}">
+			<meta itemprop="highPrice" content="{{ price_range.max }}">
+		</div>
+		<small class="text-muted" style="font-size: 12px; display: block; margin-top: 4px;">{{ _("Price range for all variants") }}</small>
+	</div>
+	{% endif %}
+	
+	<!-- Varyant Seçimi (Inline - Profesyonel) -->
+	{% if has_variants and attributes %}
+	<div class="variant-selector-section mt-4 mb-4" style="padding: 24px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+		{% for attr in attributes %}
+		<div class="variant-attribute-group mb-4" style="{% if not loop.last %}padding-bottom: 20px; border-bottom: 1px solid #e9ecef;{% endif %}">
+			<label class="variant-attribute-label font-weight-bold mb-3" style="font-size: 15px; color: #2c3e50; display: block; margin-bottom: 12px;">
+				{{ _(attr.attribute) }}:
+				{% if selected_attributes.get(attr.attribute) %}
+				<span class="text-primary ml-2" style="font-weight: 600; font-size: 16px;">{{ selected_attributes.get(attr.attribute) }}</span>
+				{% else %}
+				<span class="text-muted ml-2" style="font-size: 13px; font-weight: normal;">{{ _("Seçiniz") }}</span>
+				{% endif %}
+			</label>
+			<div class="variant-attribute-values d-flex flex-wrap" style="gap: 12px;">
+				{% for value in attribute_values.get(attr.attribute, []) %}
+				{% set is_selected = selected_attributes.get(attr.attribute) == value %}
+				{% set is_disabled = False %}
+				<button 
+					type="button"
+					class="btn variant-attribute-btn {{ 'variant-attribute-selected' if is_selected else 'variant-attribute-unselected' }}"
+					data-attribute="{{ attr.attribute }}"
+					data-value="{{ value }}"
+					{% if is_disabled %}disabled{% endif %}
+					style="
+						min-width: 70px;
+						padding: 10px 18px;
+						border-radius: 8px;
+						font-size: 14px;
+						font-weight: 600;
+						transition: all 0.3s ease;
+						border: 2px solid;
+						cursor: pointer;
+						{% if is_selected %}
+						background-color: #ff6b35;
+						border-color: #ff6b35;
+						color: white;
+						box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+						transform: scale(1.05);
+						{% else %}
+						background-color: white;
+						border-color: #dee2e6;
+						color: #495057;
+						{% endif %}
+					"
+					onmouseover="if(!this.disabled && !$(this).hasClass('variant-attribute-selected')) { this.style.borderColor='#ff6b35'; this.style.color='#ff6b35'; this.style.transform='scale(1.02)'; }"
+					onmouseout="if(!this.disabled && !$(this).hasClass('variant-attribute-selected')) { this.style.borderColor='#dee2e6'; this.style.color='#495057'; this.style.transform='scale(1)'; }"
+				>
+					{{ value }}
+				</button>
+				{% endfor %}
+			</div>
+		</div>
+		{% endfor %}
+		
+		<!-- Seçili Varyant Bilgileri -->
+		<div id="selected-variant-info" class="selected-variant-info mt-4 mb-3" style="display: none;">
+			<div class="alert" style="border-left: 4px solid #ff6b35; background: linear-gradient(135deg, #fff5f2 0%, #ffe8e0 100%); border-radius: 8px; padding: 18px 20px; margin: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+				<div class="row align-items-center">
+					<div class="col-md-8">
+						<div class="mb-2">
+							<strong style="font-size: 15px; color: #2c3e50; line-height: 1.4;" id="selected-variant-name"></strong>
+						</div>
+						<div id="selected-variant-price" style="font-size: 22px; font-weight: 700; color: #28a745; margin-top: 4px;"></div>
+					</div>
+					<div class="col-md-4 text-right">
+						<div id="selected-variant-stock"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Add to Cart (Varyant Seçildikten Sonra) -->
+		<div id="variant-add-to-cart" class="variant-add-to-cart mt-3" style="display: none;">
+			{% include "templates/generators/item/item_add_to_cart.html" %}
+		</div>
+	</div>
 	{% else %}
 		{% include "templates/generators/item/item_add_to_cart.html" %}
 	{% endif %}
@@ -72,15 +214,71 @@
 	</div>
 </div>
 
-{% block base_scripts %}
-<!-- js should be loaded in body! -->
-<script type="text/javascript" src="/assets/frappe/js/lib/jquery/jquery.min.js"></script>
-{% endblock %}
-
 <script>
-	$('.page_content').on('click', '.like-action-item-fp', (e) => {
+	{% if has_variants and variant_info %}
+	// Varyant bilgilerini JavaScript'e geçir
+	window.variant_info = {{ variant_info | json | safe }};
+	window.attributes = {{ attributes | json | safe }};
+	window.selected_attributes = {{ selected_attributes | json | safe }};
+	window.attribute_values = {{ attribute_values | json | safe }};
+	{% if price_info and price_info.formatted_price_sales_uom %}
+	window.template_price = {{ price_info.formatted_price_sales_uom | json | safe }};
+	{% endif %}
+	{% endif %}
+	
+	// UOM seçimi için yardımcı fonksiyonlar - jQuery kontrolü ile
+	window.nm_get_selected_uom = function(itemCode) {
+		if (typeof jQuery === 'undefined') {
+			return null;
+		}
+		const $ = jQuery;
+		const selector = `.nm-uom-select[data-item-code="${itemCode}"]`;
+		const $select = $(selector);
+		return $select.length ? $select.val() : null;
+	};
+
+	window.nm_update_price_for_uom = function(itemCode) {
+		if (typeof jQuery === 'undefined') {
+			return;
+		}
+		const $ = jQuery;
+		const selector = `.nm-uom-select[data-item-code="${itemCode}"]`;
+		const $select = $(selector);
+		if (!$select.length) return;
+
+		const formattedPrice = $select.find('option:selected').data('price');
+		if (!formattedPrice) return;
+
+		// Detay sayfasındaki ana fiyat alanını güncelle (varsa)
+		const $priceEl = $('.product-price span[itemprop="lowPrice"], .product-price span[itemprop="highPrice"]');
+		if ($priceEl.length) {
+			$priceEl.text(formattedPrice);
+		}
+	};
+
+	// Tüm jQuery kodlarını frappe.ready içine al
+	frappe.ready(function() {
+		if (typeof jQuery === 'undefined') {
+			console.error('jQuery is not loaded');
+			return;
+		}
+		const $ = jQuery;
+
+		$(document).on('change', '.nm-uom-select', function() {
+			const itemCode = $(this).data('item-code');
+			window.nm_update_price_for_uom(itemCode);
+		});
+		
+		$('.page_content').on('click', '.like-action-item-fp', (e) => {
 			// Bind action on wishlist button
 			const $btn = $(e.currentTarget);
 			webshop.webshop.wishlist.wishlist_action($btn);
 		});
+	});
 </script>
+
+{% if has_variants and attributes %}
+<script>
+{% include "templates/generators/item/item_variant_selector.js" %}
+</script>
+{% endif %}

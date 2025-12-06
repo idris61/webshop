@@ -72,9 +72,6 @@ def get_item_codes_by_attributes(attribute_filters, template_item_code=None):
 
 @frappe.whitelist(allow_guest=True)
 def get_attributes_and_values(item_code):
-	"""Build a list of attributes and their possible values.
-	This will ignore the values upon selection of which there cannot exist one item.
-	"""
 	item_cache = ItemVariantsCacheManager(item_code)
 	item_variants_data = item_cache.get_item_variants_data()
 
@@ -93,17 +90,11 @@ def get_attributes_and_values(item_code):
 	for iv in item_attribute_values:
 		ordered_attribute_value_map.setdefault(iv.parent, []).append(iv.attribute_value)
 
-	"""Numeric attributes are not stored in the Item Attribute Value table.
-	However, they are included in valid_options. If they are not found in ordered_attribute_value_map
-	sort and add them to it. This does not include the entire range if there is no
-	product associated with specific number. Only possible values are returned.
-	"""
 	for attr_name in attribute_list:
 		if attr_name not in ordered_attribute_value_map:
 			numeric_list = sorted([i for i in valid_options[attr_name] if i.replace(".","").isnumeric()], key=float)
 			ordered_attribute_value_map[attr_name] = numeric_list
 
-	# build attribute values in idx order
 	for attr in attributes:
 		valid_attribute_values = valid_options.get(attr.attribute, [])
 		ordered_values = ordered_attribute_value_map.get(attr.attribute, [])
@@ -116,11 +107,6 @@ def get_attributes_and_values(item_code):
 def get_next_attribute_and_values(item_code, selected_attributes):
 	from erpnext.stock.doctype.warehouse.warehouse import get_child_warehouses
 
-	"""Find the count of Items that match the selected attributes.
-	Also, find the attribute values that are not applicable for further searching.
-	If less than equal to 10 items are found, return item_codes of those items.
-	If one item is matched exactly, return item_code of that item.
-	"""
 	selected_attributes = frappe.parse_json(selected_attributes)
 
 	item_cache = ItemVariantsCacheManager(item_code)
@@ -144,7 +130,6 @@ def get_next_attribute_and_values(item_code, selected_attributes):
 
 		selected_attribute = selected_attributes.get(a, None)
 		if selected_attribute:
-			# already selected attribute values are valid options
 			valid_options_for_attributes[a].add(selected_attribute)
 
 	for row in item_variants_data:
@@ -158,7 +143,6 @@ def get_next_attribute_and_values(item_code, selected_attributes):
 
 	optional_attributes = item_cache.get_optional_attributes()
 	exact_match = []
-	# search for exact match if all selected attributes are required attributes
 	if len(selected_attributes.keys()) >= (len(attribute_list) - len(optional_attributes)):
 		item_attribute_value_map = item_cache.get_item_attribute_value_map()
 		for item_code, attr_dict in item_attribute_value_map.items():
@@ -247,8 +231,6 @@ def get_item_attributes(item_code):
 def get_item_variant_price_dict(item_code, cart_settings):
 	if cart_settings.enabled and cart_settings.show_price:
 		is_guest = frappe.session.user == "Guest"
-		# Show Price if logged in.
-		# If not logged in, check if price is hidden for guest.
 		if not is_guest or not cart_settings.hide_price_for_guest:
 			price_list = _set_price_list(cart_settings, None)
 			price = get_price(

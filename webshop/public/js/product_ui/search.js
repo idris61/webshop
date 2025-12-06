@@ -2,6 +2,8 @@ webshop.ProductSearch = class {
 	constructor(opts) {
 		$.extend(this, opts);
 		this.MAX_RECENT_SEARCHES = 4;
+		this.MIN_SEARCH_LENGTH = 1; // Her karakter için anında arama
+		this.SEARCH_DEBOUNCE_MS = 100; // Daha hızlı yanıt için debounce azaltıldı
 		this.search_box_id = this.search_box_id || "#search-box";
 		this.searchBox = $(this.search_box_id);
 
@@ -16,16 +18,14 @@ webshop.ProductSearch = class {
 	}
 
 	bindSearchAction() {
-		let me = this;
-
 		this.searchBox.on("focus", () => {
 			this.search_dropdown.removeClass("hidden");
 		});
 
 		$("body").on("click", (e) => {
-			let searchEvent = $(e.target).closest(this.search_box_id).length;
-			let resultsEvent = $(e.target).closest('#search-results-container').length;
-			let isResultHidden = this.search_dropdown.hasClass("hidden");
+			const searchEvent = $(e.target).closest(this.search_box_id).length;
+			const resultsEvent = $(e.target).closest('#search-results-container').length;
+			const isResultHidden = this.search_dropdown.hasClass("hidden");
 
 			if (!searchEvent && !resultsEvent && !isResultHidden) {
 				this.search_dropdown.addClass("hidden");
@@ -33,39 +33,47 @@ webshop.ProductSearch = class {
 		});
 
 		const performSearch = frappe.utils.debounce((query) => {
-			if (query.length < 3 || !query.length) return;
+			if (!query || query.length === 0) {
+				this.populateResults(null);
+				this.populateCategoriesList(null);
+				return;
+			}
 
 			frappe.call({
 				method: "webshop.templates.pages.product_search.search",
 				args: { query: query },
 				callback: (data) => {
-					let product_results = data.message ? data.message.product_results : null;
-					let category_results = data.message ? data.message.category_results : null;
+					try {
+						const product_results = data?.message?.product_results || null;
+						const category_results = data?.message?.category_results || null;
 
-					me.populateResults(product_results);
+						this.populateResults(product_results);
 
-					if (me.category_container) {
-						me.populateCategoriesList(category_results);
-					}
+						if (this.category_container) {
+							this.populateCategoriesList(category_results);
+						}
 
-					if (!$.isEmptyObject(product_results) || !$.isEmptyObject(category_results)) {
-						me.setRecentSearches(query);
+						if (product_results?.length || category_results?.length) {
+							this.setRecentSearches(query);
+						}
+					} catch (error) {
+						console.error("Search error:", error);
 					}
 				}
 			});
-		}, 200);
+		}, this.SEARCH_DEBOUNCE_MS);
 
 		this.searchBox.on("input", (e) => {
-			let query = e.target.value;
+			const query = e.target.value.trim();
 
-			if (query.length == 0) {
-				me.populateResults(null);
-				me.populateCategoriesList(null);
+			if (query.length === 0) {
+				this.populateResults(null);
+				this.populateCategoriesList(null);
+				this.search_dropdown.removeClass("hidden"); // Recent searches'ı göster
 				return;
 			}
 
-			if (query.length < 3) return;
-
+			// Her karakter için anında arama yap
 			performSearch(query);
 			this.search_dropdown.removeClass("hidden");
 		});
@@ -104,10 +112,10 @@ webshop.ProductSearch = class {
 	}
 
 	setupRecentsContainer() {
-		let $recents_section = this.search_dropdown.append(`
+		const $recents_section = this.search_dropdown.append(`
 			<div class="mb-2 mt-2 recent-searches">
 				<div>
-					<b>${ __("Recent") }</b>
+					<b>${__("Recent")}</b>
 				</div>
 			</div>
 		`).find(".recent-searches");
@@ -119,57 +127,64 @@ webshop.ProductSearch = class {
 	}
 
 	getRecentSearches() {
-		return JSON.parse(localStorage.getItem("recent_searches") || "[]");
+		try {
+			return JSON.parse(localStorage.getItem("recent_searches") || "[]");
+		} catch (error) {
+			console.error("Error parsing recent searches:", error);
+			return [];
+		}
 	}
 
 	attachEventListenersToChips() {
-		let me = this;
 		const chips = $(".recent-search");
 
-		for (let chip of chips) {
-			chip.addEventListener("click", () => {
-				me.searchBox[0].value = chip.innerText.trim();
-				me.searchBox.trigger("input");
-				me.searchBox.focus();
-			});
-		}
+		chips.on('click', (e) => {
+			const chip = e.currentTarget;
+			this.searchBox[0].value = chip.innerText.trim();
+			this.searchBox.trigger("input");
+			this.searchBox.focus();
+		});
 	}
 
 	setRecentSearches(query) {
-		let recents = this.getRecentSearches();
+		const recents = this.getRecentSearches();
 		
 		if (recents.length >= this.MAX_RECENT_SEARCHES) {
-			recents.splice(0, 1);
+			recents.shift();
 		}
 
-		if (recents.indexOf(query) >= 0) {
+		if (recents.includes(query)) {
 			return;
 		}
 
 		recents.push(query);
-		localStorage.setItem("recent_searches", JSON.stringify(recents));
-		this.populateRecentSearches();
+		try {
+			localStorage.setItem("recent_searches", JSON.stringify(recents));
+			this.populateRecentSearches();
+		} catch (error) {
+			console.error("Error saving recent searches:", error);
+		}
 	}
 
 	populateRecentSearches() {
-		let recents = this.getRecentSearches();
+		const recents = this.getRecentSearches();
 
 		if (!recents.length) {
-			this.recents_container.html(`<span class=""text-muted">${ __("No searches yet.") }</span>`);
+			this.recents_container.html(`<span class="text-muted">${__("No searches yet.")}</span>`);
 			return;
 		}
 
 		let html = "";
 		recents.forEach((key) => {
 			html += `
-				<div class="recent-search mr-1" style="font-size: 13px">
+				<div class="recent-search mr-1" style="font-size: 13px; cursor: pointer;">
 					<span class="mr-2">
 						<svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-							<path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="var(--gray-500)"" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+							<path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="var(--gray-500)" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
 							<path d="M8.00027 5.20947V8.00017L10 10" stroke="var(--gray-500)" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
 						</svg>
 					</span>
-					${ key }
+					${key}
 				</div>
 			`;
 		});
@@ -179,7 +194,7 @@ webshop.ProductSearch = class {
 	}
 
 	populateResults(product_results) {
-		if (!product_results || product_results.length === 0) {
+		if (!product_results?.length) {
 			this.products_container.html('');
 			return;
 		}
@@ -187,13 +202,18 @@ webshop.ProductSearch = class {
 		let html = "";
 
 		product_results.forEach((res) => {
-			let thumbnail = res.thumbnail || res.website_image || '/assets/webshop/images/cart-empty-state.png';
+			const thumbnail = res.thumbnail || res.website_image || '/assets/webshop/images/cart-empty-state.png';
+			const route = res.route || '#';
+			const brandLine = res.brand ? `by ${res.brand}` : '';
+			const itemCode = res.item_code || '';
+			
 			html += `
 				<div class="dropdown-item">
-					<img class="item-thumb" src="${thumbnail}" alt="${res.web_item_name}" loading="lazy" />
+					<img class="item-thumb" src="${thumbnail}" alt="${res.web_item_name || ''}" loading="lazy" />
 					<div>
-						<a href="/${res.route}">${res.web_item_name}</a>
-						<span class="brand-line">${res.brand ? "by " + res.brand : ""}</span>
+						<a href="/${route}">${res.web_item_name || res.item_name || ''}</a>
+						${itemCode ? `<div class="text-muted small">${itemCode}</div>` : ''}
+						${brandLine ? `<span class="brand-line">${brandLine}</span>` : ''}
 					</div>
 				</div>
 			`;
@@ -203,22 +223,19 @@ webshop.ProductSearch = class {
 	}
 
 	populateCategoriesList(category_results) {
-		if (!category_results || category_results.length === 0) {
-			this.category_container.html(`
-				<div class="category-container mt-2">
-					<div class="category-chips"></div>
-				</div>
-			`);
+		if (!category_results?.length) {
+			this.category_container.html('');
 			return;
 		}
 
-		let html = `<div class="mb-2"><b>${ __("Categories") }</b></div>`;
+		let html = `<div class="mb-2"><b>${__("Categories")}</b></div>`;
 
 		category_results.forEach((category) => {
+			const route = category.route || '#';
 			html += `
-				<a href="/${category.route}" class="btn btn-sm category-chip mr-2 mb-2" 
+				<a href="/${route}" class="btn btn-sm category-chip mr-2 mb-2" 
 					style="font-size: 13px" role="button">
-					${ category.name }
+					${category.name || ''}
 				</a>
 			`;
 		});

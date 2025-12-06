@@ -5,7 +5,7 @@ from frappe.utils import get_url, cint
 from frappe.website.website_generator import WebsiteGenerator
 from erpnext.setup.doctype.item_group.item_group import ItemGroup
 from frappe.website.utils import clear_cache
-from webshop.webshop.product_data_engine.filters import ProductFiltersBuilder
+from webshop.webshop.product_data_engine.filters import ProductFiltersBuilder, clear_filter_cache
 
 class WebshopItemGroup(ItemGroup, WebsiteGenerator):
 	nsm_parent_field = "parent_item_group"
@@ -23,6 +23,7 @@ class WebshopItemGroup(ItemGroup, WebsiteGenerator):
 
 	def on_update(self):
 		invalidate_cache_for(self)
+		clear_filter_cache(self)
 		super(WebshopItemGroup, self).on_update()
 
 	def make_route(self):
@@ -58,6 +59,7 @@ class WebshopItemGroup(ItemGroup, WebsiteGenerator):
 
 		context.field_filters = filter_engine.get_field_filters()
 		context.attribute_filters = filter_engine.get_attribute_filters()
+		context.product_category_filters = filter_engine.get_product_category_filters()
 
 		context.update({"parents": get_parent_item_groups(self.parent_item_group), "title": self.name})
 
@@ -104,9 +106,10 @@ def get_parent_item_groups(item_group_name, from_item=False):
 	else:
 		base_nav_page = {"name": _("All Products"), "route": "/all-products"}
 
-	if from_item and frappe.request.environ.get("HTTP_REFERER"):
+	request = getattr(frappe.local, "request", None)
+	if from_item and request and getattr(request, "environ", None):
 		# base page after 'Home' will vary on Item page
-		last_page = frappe.request.environ["HTTP_REFERER"].split("/")[-1].split("?")[0]
+		last_page = request.environ.get("HTTP_REFERER", "").split("/")[-1].split("?")[0]
 		if last_page and last_page in ("shop-by-category", "all-products"):
 			base_nav_page_title = " ".join(last_page.split("-")).title()
 			base_nav_page = {"name": _(base_nav_page_title), "route": "/" + last_page}
@@ -128,6 +131,16 @@ def get_parent_item_groups(item_group_name, from_item=False):
 		(item_group.lft, item_group.rgt),
 		as_dict=True,
 	)
+	
+	# Apply translations for Item Group names
+	from webshop.webshop.utils.translation import get_translated_text
+	for group in parent_groups:
+		if group.get('name'):
+			translated_name = get_translated_text(group['name'])
+			if translated_name:
+				group['name'] = translated_name
+				group['title'] = translated_name
+				group['label'] = translated_name
 
 	return base_parents + parent_groups
 
